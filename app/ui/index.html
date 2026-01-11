@@ -13,29 +13,42 @@
         <!-- Sidebar -->
         <nav class="sidebar">
             <div class="logo">
-                <span class="logo-icon">🔍</span>
-                <span class="logo-text">Chrome Monitor</span>
+                <div class="logo-icon">🛡️</div>
+                <div class="logo-text">
+                    <span class="logo-title">Chrome Monitor</span>
+                    <span class="logo-subtitle">Security Scanner</span>
+                </div>
             </div>
-            <div class="nav-items">
+
+            <div class="nav-section">
+                <div class="nav-label">MAIN</div>
                 <button class="nav-item active" data-tab="scan">
                     <span class="nav-icon">🔬</span>
-                    <span>Scan</span>
-                </button>
-                <button class="nav-item" data-tab="scripts">
-                    <span class="nav-icon">📝</span>
-                    <span>Scripts</span>
-                </button>
-                <button class="nav-item" data-tab="credentials">
-                    <span class="nav-icon">🔐</span>
-                    <span>Credentials</span>
+                    <span class="nav-text">Scan & Test</span>
                 </button>
                 <button class="nav-item" data-tab="reports">
-                    <span class="nav-icon">📋</span>
-                    <span>Reports</span>
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Reports</span>
                 </button>
             </div>
+
+            <div class="nav-section">
+                <div class="nav-label">SETTINGS</div>
+                <button class="nav-item" data-tab="scripts">
+                    <span class="nav-icon">📝</span>
+                    <span class="nav-text">Scripts</span>
+                </button>
+                <button class="nav-item" data-tab="credentials">
+                    <span class="nav-icon">🔑</span>
+                    <span class="nav-text">Credentials</span>
+                </button>
+            </div>
+
             <div class="nav-footer">
-                <div class="version">v1.0.0</div>
+                <div class="status-badge" id="app-status">
+                    <span class="status-dot"></span>
+                    <span>Ready</span>
+                </div>
             </div>
         </nav>
 
@@ -44,143 +57,145 @@
 
             <!-- ============ SCAN TAB ============ -->
             <section class="tab-content active" id="scan-tab">
-                <div class="page-header">
-                    <h1>🔬 Extension Security Scan</h1>
-                    <p>Upload extension → Static Analysis → Dynamic Testing → Real-time Monitoring</p>
-                </div>
-
-                <!-- Step 1: Upload Extension -->
-                <div class="scan-section">
-                    <h3>Step 1: Upload Extension</h3>
-                    <div class="upload-area" id="upload-area">
-                        <div class="upload-icon">📦</div>
-                        <p>Drop CRX/ZIP file here or click to browse</p>
-                        <input type="file" id="file-input" accept=".crx,.zip" hidden>
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="top-title">
+                        <h1>Extension Security Scan</h1>
+                    </div>
+                    <div class="top-actions">
+                        <button class="icon-btn" id="settings-btn" title="Quick Settings">⚙️</button>
+                        <button class="icon-btn" id="help-btn" title="Help">❓</button>
                     </div>
                 </div>
 
-                <!-- Step 2: Static Analysis Result -->
-                <div class="scan-section hidden" id="static-result-section">
-                    <h3>Step 2: Static Analysis Result</h3>
-                    <div class="static-result" id="static-result">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
-
-                <!-- Step 3: Start Dynamic Testing -->
-                <div class="scan-section" id="dynamic-test-section">
-                    <h3>Step 3: Dynamic Testing</h3>
-
-                    <div class="test-options">
-                        <div class="option-row">
-                            <label>
-                                <input type="checkbox" id="use-credentials"> Use Test Credentials
-                            </label>
+                <!-- Main Grid -->
+                <div class="scan-grid">
+                    <!-- Left Panel: Upload & Analysis -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>📦 Extension Analysis</h2>
+                            <span class="badge">Static Scan</span>
                         </div>
-                        <div class="option-row">
-                            <label>Run Automation Script:</label>
-                            <select id="script-select">
-                                <option value="">-- Manual Testing --</option>
-                                <!-- Populated dynamically -->
+
+                        <div class="upload-box" id="upload-area">
+                            <div class="upload-content">
+                                <span class="upload-icon">📁</span>
+                                <span class="upload-text">Drop .crx or .zip file here</span>
+                                <span class="upload-hint">or click to browse</span>
+                            </div>
+                            <input type="file" id="file-input" accept=".crx,.zip" hidden>
+                        </div>
+
+                        <div class="analysis-result" id="analysis-result">
+                            <div class="result-placeholder">
+                                <span>No extension loaded</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Testing Controls -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>🌐 Dynamic Testing</h2>
+                            <span class="badge badge-primary" id="test-status-badge">Ready</span>
+                        </div>
+
+                        <!-- Quick Settings -->
+                        <div class="settings-row">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="use-credentials">
+                                <span class="toggle-switch"></span>
+                                <span>Use Test Credentials</span>
+                            </label>
+
+                            <select id="script-select" class="select-field">
+                                <option value="">Manual Testing</option>
                             </select>
                         </div>
-                    </div>
 
-                    <div class="test-controls">
-                        <button class="btn btn-success btn-lg" id="start-test-btn">▶ Start Browser Testing</button>
-                        <button class="btn btn-danger btn-lg hidden" id="stop-test-btn">⏹ Stop & Generate
-                            Report</button>
-                        <button class="btn btn-secondary hidden" id="export-har-btn">📦 Export HAR</button>
+                        <!-- Action Buttons -->
+                        <div class="action-row">
+                            <button class="btn-primary btn-large" id="start-test-btn">
+                                <span class="btn-icon">▶</span>
+                                <span>Start Testing</span>
+                            </button>
+                            <button class="btn-danger btn-large hidden" id="stop-test-btn">
+                                <span class="btn-icon">⏹</span>
+                                <span>Stop & Report</span>
+                            </button>
+                            <button class="btn-outline hidden" id="export-har-btn">📦 HAR</button>
+                        </div>
+
+                        <!-- Live Stats -->
+                        <div class="stats-bar hidden" id="stats-bar">
+                            <div class="stat-item">
+                                <span class="stat-num" id="stat-requests">0</span>
+                                <span class="stat-name">Requests</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-num" id="stat-activities">0</span>
+                                <span class="stat-name">API Calls</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-num" id="stat-dom">0</span>
+                                <span class="stat-name">DOM</span>
+                            </div>
+                            <div class="stat-item stat-danger" id="threat-stat">
+                                <span class="stat-num" id="stat-threats">0</span>
+                                <span class="stat-name">Threats</span>
+                            </div>
+                            <div class="stat-item stat-timer">
+                                <span class="stat-num" id="stat-duration">0s</span>
+                                <span class="stat-name">Time</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Step 4: Real-time Dynamic Data -->
-                <div class="scan-section hidden" id="realtime-section">
-                    <h3>Step 4: Real-time Monitoring</h3>
-
-                    <!-- Status Bar -->
-                    <div class="status-bar">
-                        <div class="status-indicator active"></div>
-                        <span id="status-text">Recording Activity...</span>
-                        <span class="duration" id="stat-duration">0s</span>
-                    </div>
-
-                    <!-- Stats Grid -->
-                    <div class="realtime-stats">
-                        <div class="stat-box">
-                            <span class="stat-value" id="stat-requests">0</span>
-                            <span class="stat-label">Network Requests</span>
+                <!-- Live Feed (Bottom) -->
+                <div class="live-panel hidden" id="live-panel">
+                    <div class="live-header">
+                        <div class="live-tabs">
+                            <button class="live-tab active" data-live="network">Network</button>
+                            <button class="live-tab" data-live="dom">DOM Events</button>
+                            <button class="live-tab" data-live="api">API Calls</button>
+                            <button class="live-tab" data-live="automation">Automation</button>
                         </div>
-                        <div class="stat-box">
-                            <span class="stat-value" id="stat-activities">0</span>
-                            <span class="stat-label">Extension API Calls</span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-value" id="stat-dom">0</span>
-                            <span class="stat-label">DOM Events</span>
-                        </div>
-                        <div class="stat-box threat" id="threat-box">
-                            <span class="stat-value" id="stat-threats">0</span>
-                            <span class="stat-label">Threats Detected</span>
+                        <div class="live-indicator">
+                            <span class="pulse"></span>
+                            <span>LIVE</span>
                         </div>
                     </div>
-
-                    <!-- Threat Alerts -->
-                    <div class="threat-alerts hidden" id="threat-alerts">
-                        <h4>⚠️ Threat Alerts</h4>
-                        <div id="threat-list"></div>
-                    </div>
-
-                    <!-- Live Data Tabs -->
-                    <div class="live-data-tabs">
-                        <button class="tab-btn active" data-live="network">Network</button>
-                        <button class="tab-btn" data-live="dom">DOM Events</button>
-                        <button class="tab-btn" data-live="api">API Calls</button>
-                        <button class="tab-btn" data-live="automation">Automation</button>
-                    </div>
-
-                    <div class="live-data-panel" id="live-data-panel">
-                        <div class="live-empty">Waiting for activity...</div>
+                    <div class="live-feed" id="live-feed">
+                        <div class="feed-empty">Waiting for activity...</div>
                     </div>
                 </div>
             </section>
 
+            <!-- ============ REPORTS TAB ============ -->
+            <section class="tab-content" id="reports-tab">
+                <div class="top-bar">
+                    <h1>📊 Security Reports</h1>
+                </div>
+                <div class="reports-grid" id="reports-list"></div>
+                <div class="report-detail hidden" id="report-detail"></div>
+            </section>
+
             <!-- ============ SCRIPTS TAB ============ -->
             <section class="tab-content" id="scripts-tab">
-                <div class="page-header">
+                <div class="top-bar">
                     <h1>📝 Automation Scripts</h1>
-                    <p>Create, edit, and manage custom automation scripts</p>
+                    <button class="btn-primary" id="new-script-btn">+ New Script</button>
                 </div>
-
-                <div class="scripts-layout">
-                    <div class="scripts-sidebar">
-                        <button class="btn btn-success" id="new-script-btn">➕ New Script</button>
-                        <div class="scripts-list" id="scripts-list">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-
-                    <div class="scripts-editor">
-                        <div class="editor-toolbar">
-                            <input type="text" id="script-name" placeholder="Script Name" class="input-lg">
-                            <button class="btn btn-primary" id="save-script-btn">💾 Save</button>
-                            <button class="btn btn-danger" id="delete-script-btn">🗑️ Delete</button>
-                        </div>
-                        <textarea id="script-editor" class="code-editor"
-                            placeholder='Enter script JSON here...'></textarea>
-                        <div class="editor-help">
-                            <strong>Actions:</strong> navigate, click, type, wait, scroll, hover, screenshot, newTab,
-                            reload, press, login, fillCredentials
-                            <br><br>
-                            <strong>Example:</strong>
-                            <pre>{
-  "name": "My Login Test",
-  "actions": [
-    { "type": "navigate", "url": "https://example.com/login" },
-    { "type": "wait", "duration": 2000 },
-    { "type": "login" }
-  ]
-}</pre>
+                <div class="scripts-grid">
+                    <div class="scripts-list" id="scripts-list"></div>
+                    <div class="script-editor-panel">
+                        <input type="text" id="script-name" class="input-large" placeholder="Script Name">
+                        <textarea id="script-editor" class="code-editor" placeholder="Enter script JSON..."></textarea>
+                        <div class="editor-actions">
+                            <button class="btn-primary" id="save-script-btn">💾 Save</button>
+                            <button class="btn-outline" id="run-script-btn">▶ Test Run</button>
+                            <button class="btn-danger" id="delete-script-btn">🗑️ Delete</button>
                         </div>
                     </div>
                 </div>
@@ -188,69 +203,39 @@
 
             <!-- ============ CREDENTIALS TAB ============ -->
             <section class="tab-content" id="credentials-tab">
-                <div class="page-header">
-                    <h1>🔐 Test Credentials</h1>
-                    <p>Manage credentials for automated login testing</p>
-                </div>
-
-                <!-- Default Credentials -->
-                <div class="cred-card">
-                    <h3>Default Credentials</h3>
-                    <p class="desc">Used when no site-specific credentials are found</p>
-                    <div class="cred-form">
-                        <input type="email" id="default-email" placeholder="Email" class="input-field">
-                        <input type="text" id="default-username" placeholder="Username" class="input-field">
-                        <input type="password" id="default-password" placeholder="Password" class="input-field">
-                        <button class="btn btn-primary" id="save-default-btn">Save</button>
+                <div class="top-bar">
+                    <h1>🔑 Test Credentials</h1>
+                    <div class="top-actions">
+                        <button class="btn-outline" id="import-creds-btn">📥 Import</button>
+                        <button class="btn-outline" id="export-creds-btn">📤 Export</button>
                     </div>
                 </div>
 
-                <!-- Site Credentials -->
-                <div class="cred-card">
-                    <h3>Site-Specific Credentials</h3>
-                    <div class="site-list" id="site-list">
-                        <!-- Populated dynamically -->
+                <div class="creds-grid">
+                    <div class="cred-card">
+                        <h3>Default Credentials</h3>
+                        <div class="cred-inputs">
+                            <input type="email" id="default-email" class="input-field" placeholder="Email">
+                            <input type="text" id="default-username" class="input-field" placeholder="Username">
+                            <input type="password" id="default-password" class="input-field" placeholder="Password">
+                            <button class="btn-primary" id="save-default-btn">Save</button>
+                        </div>
                     </div>
 
-                    <div class="add-site-form">
-                        <h4>Add New Site</h4>
-                        <div class="cred-form">
-                            <input type="text" id="site-name" placeholder="Site (e.g., facebook, google)"
-                                class="input-field">
-                            <input type="email" id="site-email" placeholder="Email" class="input-field">
-                            <input type="password" id="site-password" placeholder="Password" class="input-field">
-                            <button class="btn btn-success" id="add-site-btn">➕ Add</button>
+                    <div class="cred-card">
+                        <h3>Site Credentials</h3>
+                        <div class="site-list" id="site-list"></div>
+                        <div class="add-site-row">
+                            <input type="text" id="site-name" class="input-field" placeholder="Site name">
+                            <input type="email" id="site-email" class="input-field" placeholder="Email">
+                            <input type="password" id="site-password" class="input-field" placeholder="Password">
+                            <button class="btn-success" id="add-site-btn">+</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Import/Export -->
-                <div class="cred-card">
-                    <h3>Import / Export</h3>
-                    <div class="btn-group">
-                        <button class="btn btn-secondary" id="import-creds-btn">📥 Import JSON</button>
-                        <button class="btn btn-secondary" id="export-creds-btn">📤 Export JSON</button>
-                        <button class="btn btn-danger" id="clear-creds-btn">🗑️ Clear All</button>
-                    </div>
-                </div>
+                <button class="btn-danger" id="clear-creds-btn" style="margin-top: 20px;">🗑️ Clear All</button>
             </section>
-
-            <!-- ============ REPORTS TAB ============ -->
-            <section class="tab-content" id="reports-tab">
-                <div class="page-header">
-                    <h1>📋 Security Reports</h1>
-                    <p>View and export scan results</p>
-                </div>
-
-                <div class="reports-list" id="reports-list">
-                    <!-- Populated dynamically -->
-                </div>
-
-                <div class="report-detail hidden" id="report-detail">
-                    <!-- Report details shown here -->
-                </div>
-            </section>
-
         </main>
     </div>
 
