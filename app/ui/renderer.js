@@ -214,15 +214,32 @@ async function loadScriptOptions() {
     const templates = await window.api.getAutomationTemplates();
     const saved = JSON.parse(localStorage.getItem('customScripts') || '[]');
 
-    select.innerHTML = '<option value="">Manual Testing</option>';
+    // Clear and add manual option
+    select.innerHTML = '<option value="">📝 Manual Testing</option>';
 
-    templates.forEach(t => {
+    // Group: Quick Tests (only essential ones)
+    const essentialTemplates = ['browse-sites', 'login-test', 'full-security'];
+    select.innerHTML += '<optgroup label="🚀 Quick Tests">';
+    templates.filter(t => essentialTemplates.includes(t.id)).forEach(t => {
         select.innerHTML += `<option value="builtin:${t.id}">${t.name}</option>`;
     });
+    select.innerHTML += '</optgroup>';
 
-    saved.forEach((s, i) => {
-        select.innerHTML += `<option value="custom:${i}">${s.name || 'Untitled'}</option>`;
+    // Group: All Built-in Templates
+    select.innerHTML += '<optgroup label="📦 Built-in Templates">';
+    templates.filter(t => !essentialTemplates.includes(t.id)).forEach(t => {
+        select.innerHTML += `<option value="builtin:${t.id}">${t.name}</option>`;
     });
+    select.innerHTML += '</optgroup>';
+
+    // Group: Custom Scripts
+    if (saved.length > 0) {
+        select.innerHTML += '<optgroup label="✨ My Scripts">';
+        saved.forEach((s, i) => {
+            select.innerHTML += `<option value="custom:${i}">${s.name || 'Untitled'}</option>`;
+        });
+        select.innerHTML += '</optgroup>';
+    }
 }
 
 // ============ SCRIPTS PAGE ============
@@ -295,8 +312,11 @@ async function loadCredentials() {
 
     list.innerHTML = Object.keys(sites).length ? Object.entries(sites).map(([site, data]) => `
         <div class="site-item">
-            <span><strong style="color: var(--primary);">${escapeHtml(site)}</strong> - ${escapeHtml(data.email || '')}</span>
-            <button class="btn-danger" style="padding: 6px 10px;" onclick="removeSite('${site}')">🗑️</button>
+            <span><strong style="color: var(--primary);">${escapeHtml(site)}</strong> <span style="color: var(--text-muted); margin-left: 8px;">${escapeHtml(data.email || '')}</span></span>
+            <div style="display: flex; gap: 6px;">
+                <button class="btn-outline" style="padding: 6px 10px; font-size: 11px;" onclick="editSite('${site}', '${escapeHtml(data.email || '')}', '${escapeHtml(data.password || '')}')">✏️ Edit</button>
+                <button class="btn-danger" style="padding: 6px 10px; font-size: 11px;" onclick="removeSite('${site}')">🗑️</button>
+            </div>
         </div>
     `).join('') : '<div style="color: var(--text-muted); padding: 12px;">No sites saved</div>';
 }
@@ -331,6 +351,16 @@ window.removeSite = async site => {
         await window.api.removeSiteCredentials(site);
         loadCredentials();
     }
+};
+
+window.editSite = (site, email, password) => {
+    // Fill the add form with existing values for editing
+    document.getElementById('site-name').value = site;
+    document.getElementById('site-email').value = email;
+    document.getElementById('site-password').value = password;
+
+    // Scroll to the add form
+    document.querySelector('.add-site-row')?.scrollIntoView({ behavior: 'smooth' });
 };
 
 document.getElementById('import-creds-btn')?.addEventListener('click', async () => {
