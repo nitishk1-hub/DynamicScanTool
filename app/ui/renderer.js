@@ -2,92 +2,113 @@
 document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
         const tab = btn.dataset.tab;
-
         document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-
         btn.classList.add('active');
         document.getElementById(`${tab}-tab`).classList.add('active');
 
-        // Load data for specific tabs
         if (tab === 'reports') loadReports();
-        if (tab === 'settings') {
-            loadCredentials();
-            loadSavedScripts();
-        }
+        if (tab === 'credentials') loadCredentials();
+        if (tab === 'scripts') loadScripts();
     });
 });
 
-// ============ EXTENSION ANALYSIS ============
+// ============ SCAN PAGE ============
+
+// --- Upload Extension ---
 const uploadArea = document.getElementById('upload-area');
 const fileInput = document.getElementById('file-input');
-const analysisResult = document.getElementById('analysis-result');
 
 uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.borderColor = 'var(--accent)'; });
+uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = ''; });
+uploadArea.addEventListener('drop', (e) => { e.preventDefault(); uploadArea.style.borderColor = ''; if (e.dataTransfer.files.length) analyzeExtension(e.dataTransfer.files[0].path); });
+fileInput.addEventListener('change', () => { if (fileInput.files.length) analyzeExtension(fileInput.files[0].path); });
 
-uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadArea.style.borderColor = 'var(--accent)';
-});
+async function analyzeExtension(filePath) {
+    const resultSection = document.getElementById('static-result-section');
+    const result = document.getElementById('static-result');
+    const dynamicSection = document.getElementById('dynamic-test-section');
 
-uploadArea.addEventListener('dragleave', () => {
-    uploadArea.style.borderColor = '';
-});
+    resultSection.classList.remove('hidden');
+    result.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Analyzing...</div>';
 
-uploadArea.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    uploadArea.style.borderColor = '';
-    if (e.dataTransfer.files.length > 0) {
-        analyzeFile(e.dataTransfer.files[0].path);
-    }
-});
+    const response = await window.api.analyzeExtension(filePath);
 
-fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) {
-        analyzeFile(fileInput.files[0].path);
-    }
-});
+    if (response.success) {
+        const data = response.data;
+        const riskClass = data.riskScore > 70 ? 'risk-high' : data.riskScore > 40 ? 'risk-medium' : 'risk-low';
 
-async function analyzeFile(filePath) {
-    analysisResult.classList.remove('hidden');
-    analysisResult.innerHTML = '<div class="spinner"></div> Analyzing...';
+        result.innerHTML = `
+            <div class="result-header">
+                <span class="result-name">${escapeHtml(data.name || 'Unknown Extension')}</span>
+                <span class="risk-badge ${riskClass}">Risk: ${data.riskScore}/100</span>
+            </div>
+            <div class="result-details">
+                <div class="result-item">
+                    <span class="value">${data.permissions?.length || 0}</span>
+                    <span class="label">Permissions</span>
+                </div>
+                <div class="result-item">
+                    <span class="value">${data.suspiciousPatterns?.length || 0}</span>
+                    <span class="label">Suspicious Patterns</span>
+                </div>
+                <div class="result-item">
+                    <span class="value">${data.version || 'N/A'}</span>
+                    <span class="label">Version</span>
+                </div>
+            </div>
+            ${data.permissions?.length > 0 ? `
+                <div style="margin-top: 16px;">
+                    <strong style="font-size: 12px; color: var(--text-dim);">Permissions:</strong>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                        ${data.permissions.map(p => `<span style="background: var(--bg-hover); padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(p)}</span>`).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `;
 
-    const result = await window.api.analyzeExtension(filePath);
-
-    if (result.success) {
-        displayAnalysisResult(result.data);
+        // Show dynamic testing section
+        dynamicSection.classList.remove('hidden');
+        loadScriptOptions();
     } else {
-        analysisResult.innerHTML = `<div style="color: var(--danger)">Error: ${result.error}</div>`;
+        result.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error: ${response.error}</div>`;
     }
 }
 
-function displayAnalysisResult(data) {
-    const riskColor = data.riskScore > 70 ? 'var(--danger)' : data.riskScore > 40 ? 'var(--warning)' : 'var(--success)';
+// --- Load script options for dropdown ---
+async function loadScriptOptions() {
+    const select = document.getElementById('script-select');
+    const templates = await window.api.getAutomationTemplates();
+    const savedScripts = JSON.parse(localStorage.getItem('customScripts') || '[]');
 
-    analysisResult.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <strong>${data.name || 'Unknown Extension'}</strong>
-            <span style="background: ${riskColor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px;">
-                Risk: ${data.riskScore}/100
-            </span>
-        </div>
-        <div style="font-size: 12px; color: var(--text-dim);">
-            <div>Version: ${data.version || 'N/A'}</div>
-            <div>Permissions: ${data.permissions?.length || 0}</div>
-            <div>Suspicious Patterns: ${data.suspiciousPatterns?.length || 0}</div>
-        </div>
-    `;
+    select.innerHTML = '<option value="">-- Manual Testing (No Script) --</option>';
+
+    // Add built-in templates
+    select.innerHTML += '<optgroup label="Built-in Templates">';
+    templates.forEach(t => {
+        select.innerHTML += `<option value="builtin:${t.id}">${t.name}</option>`;
+    });
+    select.innerHTML += '</optgroup>';
+
+    // Add custom scripts
+    if (savedScripts.length > 0) {
+        select.innerHTML += '<optgroup label="My Custom Scripts">';
+        savedScripts.forEach((s, i) => {
+            select.innerHTML += `<option value="custom:${i}">${s.name || 'Untitled'}</option>`;
+        });
+        select.innerHTML += '</optgroup>';
+    }
 }
 
-// ============ BROWSER TESTING ============
+// --- Browser Testing ---
 const startBtn = document.getElementById('start-test-btn');
 const stopBtn = document.getElementById('stop-test-btn');
 const exportHarBtn = document.getElementById('export-har-btn');
-const sessionStatus = document.getElementById('session-status');
-const threatIndicators = document.getElementById('threat-indicators');
-const liveFeed = document.getElementById('live-feed');
+const realtimeSection = document.getElementById('realtime-section');
 let statusInterval = null;
-let lastEventCount = 0;
+let currentLiveTab = 'network';
+let liveData = { network: [], dom: [], api: [], automation: [] };
 
 startBtn.addEventListener('click', async () => {
     startBtn.disabled = true;
@@ -99,16 +120,27 @@ startBtn.addEventListener('click', async () => {
         startBtn.classList.add('hidden');
         stopBtn.classList.remove('hidden');
         exportHarBtn.classList.remove('hidden');
-        threatIndicators.classList.remove('hidden');
-        sessionStatus.innerHTML = `<div class="status-indicator active"></div><span>🔴 Recording Activity</span>`;
-        liveFeed.innerHTML = '<div class="feed-empty">Waiting for activity...</div>';
-        lastEventCount = 0;
-        statusInterval = setInterval(updateRealTimeStats, 500);
+        realtimeSection.classList.remove('hidden');
+
+        // Reset live data
+        liveData = { network: [], dom: [], api: [], automation: [] };
+        document.getElementById('live-data-panel').innerHTML = '<div class="live-empty">Waiting for activity...</div>';
+
+        statusInterval = setInterval(updateRealtimeData, 500);
+
+        // Run selected script if any
+        const scriptSelect = document.getElementById('script-select');
+        const useCredentials = document.getElementById('use-credentials').checked;
+
+        if (scriptSelect.value) {
+            runSelectedScript(scriptSelect.value, useCredentials);
+        }
     } else {
         alert('Failed to start: ' + result.error);
-        startBtn.disabled = false;
-        startBtn.textContent = '▶ Start';
     }
+
+    startBtn.disabled = false;
+    startBtn.textContent = '▶ Start Browser Testing';
 });
 
 stopBtn.addEventListener('click', async () => {
@@ -125,290 +157,245 @@ stopBtn.addEventListener('click', async () => {
     stopBtn.classList.add('hidden');
     exportHarBtn.classList.add('hidden');
     startBtn.classList.remove('hidden');
-    startBtn.disabled = false;
-    startBtn.textContent = '▶ Start';
     stopBtn.disabled = false;
-    stopBtn.textContent = '⏹ Stop';
-
-    sessionStatus.innerHTML = `<div class="status-indicator inactive"></div><span>Not Running</span>`;
-    threatIndicators.classList.add('hidden');
-
-    document.getElementById('stat-requests').textContent = '0';
-    document.getElementById('stat-activities').textContent = '0';
-    document.getElementById('stat-dom').textContent = '0';
-    document.getElementById('stat-duration').textContent = '0s';
+    stopBtn.textContent = '⏹ Stop & Generate Report';
 
     if (result.success) {
-        const data = result.data;
-        alert(`Report Generated!\n\n📊 Requests: ${data.stats.totalRequests}\n🧩 API Calls: ${data.stats.extensionActivities}\n🎭 DOM: ${data.stats.domEvents || 0}\n📸 Screenshots: ${data.stats.screenshots || 0}`);
+        alert(`Report Generated!\n\nRequests: ${result.data.stats?.totalRequests || 0}\nAPI Calls: ${result.data.stats?.extensionActivities || 0}\nDOM Events: ${result.data.stats?.domEvents || 0}\nThreats: ${result.data.suspiciousActivities?.length || 0}`);
         document.querySelector('[data-tab="reports"]').click();
     }
 });
 
 exportHarBtn.addEventListener('click', async () => {
     const result = await window.api.exportHAR();
-    if (result.success) {
-        alert(`HAR exported to:\n${result.path}`);
-    }
+    if (result.success) alert(`HAR exported to:\n${result.path}`);
 });
 
-async function updateRealTimeStats() {
+async function runSelectedScript(value, useCredentials) {
+    const [type, id] = value.split(':');
+    let script;
+
+    if (type === 'builtin') {
+        const templates = await window.api.getAutomationTemplates();
+        script = templates.find(t => t.id === id);
+    } else {
+        const savedScripts = JSON.parse(localStorage.getItem('customScripts') || '[]');
+        script = savedScripts[parseInt(id)];
+    }
+
+    if (script) {
+        await window.api.runAutomation(script, { useTestCredentials: useCredentials });
+    }
+}
+
+// --- Realtime Data Updates ---
+async function updateRealtimeData() {
     const stats = await window.api.getRealTimeStats();
     if (!stats) return;
 
+    // Update stats
     document.getElementById('stat-requests').textContent = stats.requests || 0;
     document.getElementById('stat-activities').textContent = stats.activities || 0;
     document.getElementById('stat-dom').textContent = stats.domEvents || 0;
     document.getElementById('stat-duration').textContent = stats.duration + 's';
 
-    document.getElementById('critical-count').textContent = stats.criticalEvents || 0;
-    document.getElementById('high-count').textContent = stats.highEvents || 0;
-    document.getElementById('ext-count').textContent = stats.extensionRequests || 0;
-    document.getElementById('screenshot-count').textContent = stats.screenshots || 0;
+    // Threats
+    const threats = (stats.criticalEvents || 0) + (stats.highEvents || 0);
+    document.getElementById('stat-threats').textContent = threats;
 
-    if (stats.criticalEvents > 0) {
-        document.getElementById('threat-critical').style.background = 'rgba(255, 107, 107, 0.2)';
-    }
-    if (stats.highEvents > 0) {
-        document.getElementById('threat-high').style.background = 'rgba(255, 169, 77, 0.2)';
+    if (threats > 0) {
+        document.getElementById('threat-box').classList.add('threat');
+        updateThreatAlerts(stats);
     }
 
-    const totalEvents = stats.requests + stats.domEvents;
-    if (totalEvents > lastEventCount) {
-        updateLiveFeed(stats);
-        lastEventCount = totalEvents;
+    // Update live data arrays
+    if (stats.recentNetworkEvents?.length) {
+        stats.recentNetworkEvents.forEach(e => {
+            if (!liveData.network.find(n => n.timestamp === e.timestamp)) {
+                liveData.network.unshift(e);
+            }
+        });
+        liveData.network = liveData.network.slice(0, 100);
     }
+
+    if (stats.recentDOMEvents?.length) {
+        stats.recentDOMEvents.forEach(e => {
+            if (!liveData.dom.find(d => d.timestamp === e.timestamp)) {
+                liveData.dom.unshift(e);
+            }
+        });
+        liveData.dom = liveData.dom.slice(0, 100);
+    }
+
+    renderLivePanel();
 }
 
-function updateLiveFeed(stats) {
-    if (liveFeed.querySelector('.feed-empty')) {
-        liveFeed.innerHTML = '';
-    }
+function updateThreatAlerts(stats) {
+    const alertsDiv = document.getElementById('threat-alerts');
+    const listDiv = document.getElementById('threat-list');
 
-    if (stats.recentNetworkEvents?.length > 0) {
-        const latest = stats.recentNetworkEvents[0];
-        addFeedItem('network', latest.method || 'REQ', latest.url, latest.timestamp);
-    }
+    if (stats.criticalEvents > 0 || stats.highEvents > 0) {
+        alertsDiv.classList.remove('hidden');
 
-    if (stats.recentDOMEvents?.length > 0) {
-        const latest = stats.recentDOMEvents[0];
-        addFeedItem(latest.severity || 'dom', latest.type, latest.url, latest.timestamp);
-    }
-
-    while (liveFeed.children.length > 50) {
-        liveFeed.removeChild(liveFeed.lastChild);
-    }
-}
-
-function addFeedItem(type, label, url, timestamp) {
-    const time = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
-    const item = document.createElement('div');
-    item.className = 'feed-item';
-    item.innerHTML = `
-        <span class="feed-time">${time}</span>
-        <span class="feed-type ${type}">${escapeHtml(label || '')}</span>
-        <span class="feed-url">${escapeHtml(url || '')}</span>
-    `;
-    liveFeed.insertBefore(item, liveFeed.firstChild);
-}
-
-// ============ AUTOMATION TEMPLATES ============
-const templateList = document.getElementById('template-list');
-const automationStatus = document.getElementById('automation-status');
-const automationLogs = document.getElementById('automation-logs');
-const stopAutomationBtn = document.getElementById('stop-automation-btn');
-
-async function loadAutomationTemplates() {
-    const templates = await window.api.getAutomationTemplates();
-
-    templateList.innerHTML = templates.map(t => `
-        <div class="template-item" data-id="${t.id}">
-            <span class="template-icon">${getTemplateIcon(t.id)}</span>
-            ${t.name.split(' ').slice(0, 2).join(' ')}
-        </div>
-    `).join('');
-
-    templateList.querySelectorAll('.template-item').forEach(item => {
-        item.addEventListener('click', () => runTemplate(item.dataset.id, templates));
-    });
-}
-
-function getTemplateIcon(id) {
-    const icons = {
-        'browse-popular': '🌐',
-        'shopping': '🛒',
-        'login-test': '🔐',
-        'banking': '🏦',
-        'crypto': '💰',
-        'google-login': '📧',
-        'amazon-login': '🛒',
-        'full-security': '🛡️'
-    };
-    return icons[id] || '🤖';
-}
-
-async function runTemplate(id, templates) {
-    const template = templates.find(t => t.id === id);
-    if (!template) return;
-
-    automationStatus.classList.remove('hidden');
-    automationLogs.innerHTML = '';
-
-    const result = await window.api.runAutomation(template, { useTestCredentials: true });
-
-    automationStatus.classList.add('hidden');
-
-    if (!result.success) {
-        addAutomationLog('Error: ' + result.error, 'error');
-    }
-}
-
-stopAutomationBtn.addEventListener('click', async () => {
-    await window.api.stopAutomation();
-    automationStatus.classList.add('hidden');
-    addAutomationLog('Automation stopped by user', 'warning');
-});
-
-window.api.onAutomationLog((entry) => {
-    addAutomationLog(entry.message, entry.type);
-});
-
-function addAutomationLog(message, type = 'info') {
-    if (automationLogs.querySelector('.log-empty')) {
-        automationLogs.innerHTML = '';
-    }
-
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${type}`;
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-    automationLogs.appendChild(entry);
-    automationLogs.scrollTop = automationLogs.scrollHeight;
-}
-
-// ============ CUSTOM SCRIPTS ============
-let savedScripts = [];
-let currentScriptId = null;
-
-async function loadSavedScripts() {
-    try {
-        const result = await window.api.getCredentials();
-        savedScripts = result.scripts || [];
-    } catch (e) {
-        savedScripts = JSON.parse(localStorage.getItem('customScripts') || '[]');
-    }
-    renderScriptList();
-}
-
-function renderScriptList() {
-    const list = document.getElementById('script-list');
-    list.innerHTML = `
-        <div class="script-item new-script" id="new-script-btn">
-            <span>➕ New Script</span>
-        </div>
-        ${savedScripts.map((s, i) => `
-            <div class="script-item ${currentScriptId === i ? 'active' : ''}" data-index="${i}">
-                ${s.name || 'Untitled'}
+        const threats = liveData.dom.filter(e => e.severity === 'critical' || e.severity === 'high');
+        listDiv.innerHTML = threats.slice(0, 5).map(t => `
+            <div class="threat-item">
+                <span class="threat-type">[${t.severity.toUpperCase()}]</span> ${t.type} - ${escapeHtml((t.url || '').substring(0, 50))}
             </div>
-        `).join('')}
-    `;
+        `).join('');
+    }
+}
 
-    document.getElementById('new-script-btn').addEventListener('click', () => {
-        currentScriptId = null;
-        document.getElementById('script-name').value = '';
-        document.getElementById('script-editor').value = `{
-  "name": "My Script",
-  "description": "",
+function renderLivePanel() {
+    const panel = document.getElementById('live-data-panel');
+    const data = liveData[currentLiveTab];
+
+    if (!data || data.length === 0) {
+        panel.innerHTML = '<div class="live-empty">No data yet...</div>';
+        return;
+    }
+
+    panel.innerHTML = data.slice(0, 50).map(item => {
+        const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '';
+
+        if (currentLiveTab === 'network') {
+            return `<div class="live-item">
+                <span class="time">${time}</span>
+                <span class="type network">${item.method || 'GET'}</span>
+                <span class="detail">${escapeHtml((item.url || '').substring(0, 100))}</span>
+            </div>`;
+        } else if (currentLiveTab === 'dom') {
+            return `<div class="live-item">
+                <span class="time">${time}</span>
+                <span class="type ${item.severity || ''}">${item.type || 'event'}</span>
+                <span class="detail">${escapeHtml((item.url || '').substring(0, 80))}</span>
+            </div>`;
+        } else if (currentLiveTab === 'automation') {
+            return `<div class="live-item">
+                <span class="time">${time}</span>
+                <span class="type">${item.type || 'log'}</span>
+                <span class="detail">${escapeHtml(item.message || '')}</span>
+            </div>`;
+        }
+        return '';
+    }).join('');
+}
+
+// Live data tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentLiveTab = btn.dataset.live;
+        renderLivePanel();
+    });
+});
+
+// Automation logs
+window.api.onAutomationLog((entry) => {
+    liveData.automation.unshift({ ...entry, timestamp: new Date().toISOString() });
+    liveData.automation = liveData.automation.slice(0, 100);
+    if (currentLiveTab === 'automation') renderLivePanel();
+});
+
+// ============ SCRIPTS PAGE ============
+let savedScripts = [];
+let currentScriptIndex = null;
+
+function loadScripts() {
+    savedScripts = JSON.parse(localStorage.getItem('customScripts') || '[]');
+    renderScriptsList();
+}
+
+function renderScriptsList() {
+    const list = document.getElementById('scripts-list');
+
+    if (savedScripts.length === 0) {
+        list.innerHTML = '<div style="color: var(--text-dim); padding: 12px; font-size: 12px;">No scripts yet</div>';
+    } else {
+        list.innerHTML = savedScripts.map((s, i) => `
+            <div class="script-item ${currentScriptIndex === i ? 'active' : ''}" data-index="${i}">
+                ${escapeHtml(s.name || 'Untitled')}
+            </div>
+        `).join('');
+
+        list.querySelectorAll('.script-item').forEach(item => {
+            item.addEventListener('click', () => {
+                currentScriptIndex = parseInt(item.dataset.index);
+                const script = savedScripts[currentScriptIndex];
+                document.getElementById('script-name').value = script.name || '';
+                document.getElementById('script-editor').value = JSON.stringify(script, null, 2);
+                renderScriptsList();
+            });
+        });
+    }
+}
+
+document.getElementById('new-script-btn').addEventListener('click', () => {
+    currentScriptIndex = null;
+    document.getElementById('script-name').value = '';
+    document.getElementById('script-editor').value = `{
+  "name": "New Script",
   "actions": [
     { "type": "navigate", "url": "https://example.com" },
     { "type": "wait", "duration": 2000 }
   ]
 }`;
-        renderScriptList();
-    });
-
-    list.querySelectorAll('.script-item:not(.new-script)').forEach(item => {
-        item.addEventListener('click', () => {
-            const index = parseInt(item.dataset.index);
-            currentScriptId = index;
-            const script = savedScripts[index];
-            document.getElementById('script-name').value = script.name || '';
-            document.getElementById('script-editor').value = JSON.stringify(script, null, 2);
-            renderScriptList();
-        });
-    });
-}
+    renderScriptsList();
+});
 
 document.getElementById('save-script-btn').addEventListener('click', () => {
     try {
         const script = JSON.parse(document.getElementById('script-editor').value);
         script.name = document.getElementById('script-name').value || script.name || 'Untitled';
 
-        if (currentScriptId !== null) {
-            savedScripts[currentScriptId] = script;
+        if (currentScriptIndex !== null) {
+            savedScripts[currentScriptIndex] = script;
         } else {
             savedScripts.push(script);
-            currentScriptId = savedScripts.length - 1;
+            currentScriptIndex = savedScripts.length - 1;
         }
 
         localStorage.setItem('customScripts', JSON.stringify(savedScripts));
-        renderScriptList();
+        renderScriptsList();
         alert('Script saved!');
     } catch (e) {
         alert('Invalid JSON: ' + e.message);
     }
 });
 
-document.getElementById('run-script-btn').addEventListener('click', async () => {
-    try {
-        const script = JSON.parse(document.getElementById('script-editor').value);
-        automationStatus.classList.remove('hidden');
-        automationLogs.innerHTML = '';
-
-        const result = await window.api.runAutomation(script, { useTestCredentials: true });
-
-        automationStatus.classList.add('hidden');
-        if (!result.success) {
-            alert('Error: ' + result.error);
-        }
-    } catch (e) {
-        alert('Invalid JSON: ' + e.message);
-    }
-});
-
 document.getElementById('delete-script-btn').addEventListener('click', () => {
-    if (currentScriptId !== null && confirm('Delete this script?')) {
-        savedScripts.splice(currentScriptId, 1);
-        currentScriptId = null;
+    if (currentScriptIndex !== null && confirm('Delete this script?')) {
+        savedScripts.splice(currentScriptIndex, 1);
         localStorage.setItem('customScripts', JSON.stringify(savedScripts));
+        currentScriptIndex = null;
         document.getElementById('script-name').value = '';
         document.getElementById('script-editor').value = '';
-        renderScriptList();
+        renderScriptsList();
     }
 });
 
-// ============ CREDENTIALS MANAGEMENT ============
+// ============ CREDENTIALS PAGE ============
 async function loadCredentials() {
     const creds = await window.api.getCredentials();
 
-    // Default credentials
     document.getElementById('default-email').value = creds.default?.email || '';
     document.getElementById('default-username').value = creds.default?.username || '';
     document.getElementById('default-password').value = creds.default?.password || '';
 
-    // Site credentials
-    const siteList = document.getElementById('site-cred-list');
+    const siteList = document.getElementById('site-list');
     const sites = creds.sites || {};
 
     if (Object.keys(sites).length === 0) {
-        siteList.innerHTML = '<div style="color: var(--text-dim); padding: 10px; font-size: 12px;">No site credentials saved</div>';
+        siteList.innerHTML = '<div style="color: var(--text-dim); padding: 12px; font-size: 12px;">No site credentials saved</div>';
     } else {
         siteList.innerHTML = Object.entries(sites).map(([site, data]) => `
-            <div class="site-cred-item">
+            <div class="site-item">
                 <div>
-                    <span class="site-name">${site}</span>
-                    <span class="site-email">${data.email || data.username || ''}</span>
+                    <span class="site-name">${escapeHtml(site)}</span>
+                    <span class="site-email">${escapeHtml(data.email || data.username || '')}</span>
                 </div>
-                <button class="btn btn-sm btn-danger" onclick="removeSiteCred('${site}')">🗑️</button>
+                <button class="btn btn-sm btn-danger" onclick="removeSite('${site}')">🗑️</button>
             </div>
         `).join('');
     }
@@ -425,26 +412,22 @@ document.getElementById('save-default-btn').addEventListener('click', async () =
 
 document.getElementById('add-site-btn').addEventListener('click', async () => {
     const site = document.getElementById('site-name').value.toLowerCase().trim();
-    const email = document.getElementById('site-email').value;
-    const password = document.getElementById('site-password').value;
+    if (!site) { alert('Please enter a site name'); return; }
 
-    if (!site) {
-        alert('Please enter a site name');
-        return;
-    }
-
-    await window.api.setSiteCredentials({ site, email, password });
+    await window.api.setSiteCredentials({
+        site,
+        email: document.getElementById('site-email').value,
+        password: document.getElementById('site-password').value
+    });
 
     document.getElementById('site-name').value = '';
     document.getElementById('site-email').value = '';
     document.getElementById('site-password').value = '';
-
     loadCredentials();
-    alert(`Credentials for ${site} saved!`);
 });
 
-window.removeSiteCred = async function (site) {
-    if (confirm(`Remove credentials for ${site}?`)) {
+window.removeSite = async function (site) {
+    if (confirm(`Remove ${site}?`)) {
         await window.api.removeSiteCredentials(site);
         loadCredentials();
     }
@@ -452,48 +435,43 @@ window.removeSiteCred = async function (site) {
 
 document.getElementById('import-creds-btn').addEventListener('click', async () => {
     const result = await window.api.importCredentials();
-    if (result.success) {
-        alert(`Imported ${result.count} site credentials!`);
-        loadCredentials();
-    }
+    if (result.success) { alert(`Imported ${result.count} credentials!`); loadCredentials(); }
 });
 
 document.getElementById('export-creds-btn').addEventListener('click', async () => {
     const result = await window.api.exportCredentials();
-    if (result.success) {
-        alert(`Exported to: ${result.path}`);
-    }
+    if (result.success) alert(`Exported to: ${result.path}`);
 });
 
 document.getElementById('clear-creds-btn').addEventListener('click', async () => {
-    if (confirm('Clear ALL credentials? This cannot be undone.')) {
+    if (confirm('Clear ALL credentials?')) {
         await window.api.clearCredentials();
         loadCredentials();
-        alert('All credentials cleared.');
     }
 });
 
-// ============ REPORTS ============
+// ============ REPORTS PAGE ============
 async function loadReports() {
     const result = await window.api.getReports();
-    const reportsList = document.getElementById('reports-list');
-    const reportDetail = document.getElementById('report-detail');
+    const list = document.getElementById('reports-list');
+    const detail = document.getElementById('report-detail');
 
-    reportDetail.classList.add('hidden');
+    detail.classList.add('hidden');
+    list.classList.remove('hidden');
 
-    if (!result.success || result.data.length === 0) {
-        reportsList.innerHTML = '<div style="color: var(--text-dim); padding: 20px; text-align: center;">No reports yet. Start a testing session to generate reports.</div>';
+    if (!result.success || !result.data.length) {
+        list.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 40px;">No reports yet. Complete a scan to generate reports.</div>';
         return;
     }
 
-    reportsList.innerHTML = result.data.map(report => `
-        <div class="report-card" onclick="openReport('${report.id}')">
-            <h4>${report.name}</h4>
-            <div class="report-meta">${new Date(report.date).toLocaleString()}</div>
+    list.innerHTML = result.data.map(r => `
+        <div class="report-card" onclick="openReport('${r.id}')">
+            <h4>${escapeHtml(r.name)}</h4>
+            <div class="report-meta">${new Date(r.date).toLocaleString()}</div>
             <div class="report-stats">
-                <span>📊 ${report.requests || 0} requests</span>
-                <span>🧩 ${report.activities || 0} API</span>
-                <span>⚠️ ${report.suspicious || 0} alerts</span>
+                <span>📊 ${r.requests || 0}</span>
+                <span>🧩 ${r.activities || 0}</span>
+                <span>⚠️ ${r.suspicious || 0}</span>
             </div>
         </div>
     `).join('');
@@ -504,65 +482,39 @@ window.openReport = async function (id) {
     if (!result.success) return;
 
     const report = result.data;
-    const reportDetail = document.getElementById('report-detail');
-    const reportsList = document.getElementById('reports-list');
+    const list = document.getElementById('reports-list');
+    const detail = document.getElementById('report-detail');
 
-    reportsList.classList.add('hidden');
-    reportDetail.classList.remove('hidden');
+    list.classList.add('hidden');
+    detail.classList.remove('hidden');
 
-    reportDetail.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    detail.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
             <div>
-                <h2>${report.name}</h2>
-                <div style="color: var(--text-dim); font-size: 13px;">
-                    ${new Date(report.startTime).toLocaleString()} - Duration: ${Math.round(report.duration)}s
-                </div>
+                <h2>${escapeHtml(report.name)}</h2>
+                <div style="color: var(--text-dim); font-size: 12px;">${new Date(report.startTime).toLocaleString()} • ${Math.round(report.duration)}s</div>
             </div>
-            <div style="display: flex; gap: 8px;">
+            <div>
                 <button class="btn btn-secondary" onclick="exportReport('${report.id}')">📤 Export</button>
                 <button class="btn btn-secondary" onclick="closeReport()">← Back</button>
             </div>
         </div>
         
-        <div class="stats-grid" style="margin-bottom: 20px;">
-            <div class="stat"><span class="stat-value">${report.stats?.totalRequests || 0}</span><span class="stat-label">Requests</span></div>
-            <div class="stat"><span class="stat-value">${report.stats?.extensionActivities || 0}</span><span class="stat-label">API Calls</span></div>
-            <div class="stat"><span class="stat-value">${report.stats?.domEvents || 0}</span><span class="stat-label">DOM Events</span></div>
-            <div class="stat"><span class="stat-value">${report.suspiciousActivities?.length || 0}</span><span class="stat-label">Suspicious</span></div>
+        <div class="realtime-stats" style="margin-bottom: 20px;">
+            <div class="stat-box"><span class="stat-value">${report.stats?.totalRequests || 0}</span><span class="stat-label">Requests</span></div>
+            <div class="stat-box"><span class="stat-value">${report.stats?.extensionActivities || 0}</span><span class="stat-label">API Calls</span></div>
+            <div class="stat-box"><span class="stat-value">${report.stats?.domEvents || 0}</span><span class="stat-label">DOM Events</span></div>
+            <div class="stat-box threat"><span class="stat-value">${report.suspiciousActivities?.length || 0}</span><span class="stat-label">Threats</span></div>
         </div>
         
-        ${report.suspiciousActivities?.length > 0 ? `
-            <div class="card" style="margin-bottom: 16px; border-color: var(--danger);">
-                <h3 style="color: var(--danger);">⚠️ Suspicious Activities</h3>
+        ${report.suspiciousActivities?.length ? `
+            <div class="threat-alerts" style="margin-bottom: 16px;">
+                <h4>⚠️ Suspicious Activities</h4>
                 ${report.suspiciousActivities.map(a => `
-                    <div style="padding: 8px; margin: 8px 0; background: var(--bg-dark); border-radius: 6px; font-size: 12px;">
-                        <strong>${a.type}</strong>: ${a.description || a.url || 'Unknown'}
-                    </div>
+                    <div class="threat-item"><span class="threat-type">${a.type}</span> - ${escapeHtml(a.description || a.url || '')}</div>
                 `).join('')}
             </div>
         ` : ''}
-        
-        <details style="margin-bottom: 16px;">
-            <summary style="cursor: pointer; padding: 10px; background: var(--bg-dark); border-radius: 6px;">Network Events (${report.networkEvents?.length || 0})</summary>
-            <div style="max-height: 300px; overflow-y: auto; padding: 10px; font-size: 11px; font-family: monospace;">
-                ${(report.networkEvents || []).slice(0, 100).map(e => `
-                    <div style="padding: 4px 0; border-bottom: 1px solid var(--border);">
-                        ${e.method || 'GET'} ${(e.url || '').substring(0, 80)}
-                    </div>
-                `).join('')}
-            </div>
-        </details>
-        
-        <details style="margin-bottom: 16px;">
-            <summary style="cursor: pointer; padding: 10px; background: var(--bg-dark); border-radius: 6px;">DOM Events (${report.domEvents?.length || 0})</summary>
-            <div style="max-height: 300px; overflow-y: auto; padding: 10px; font-size: 11px; font-family: monospace;">
-                ${(report.domEvents || []).map(e => `
-                    <div style="padding: 4px 0; border-bottom: 1px solid var(--border); color: ${e.severity === 'critical' ? 'var(--danger)' : e.severity === 'high' ? 'var(--warning)' : 'inherit'};">
-                        [${e.severity}] ${e.type}: ${(e.url || '').substring(0, 60)}
-                    </div>
-                `).join('')}
-            </div>
-        </details>
     `;
 };
 
@@ -573,17 +525,14 @@ window.closeReport = function () {
 
 window.exportReport = async function (id) {
     const result = await window.api.exportReport(id);
-    if (result.success) {
-        alert(`Report exported to: ${result.path}`);
-    }
+    if (result.success) alert(`Exported to: ${result.path}`);
 };
 
 // ============ UTILITIES ============
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
 }
 
 // ============ INIT ============
-loadAutomationTemplates();
-loadSavedScripts();
+loadScripts();
