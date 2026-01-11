@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+out/
+
+# App data (generated at runtime)
+app/data/*.json
+!app/data/test-credentials.json
+
+# Screenshots directory
+screenshots/
+
+# Reports (generated at runtime) 
+reports/
+
+# Chrome profile (generated at runtime)
+chrome-profile/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local

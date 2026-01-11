@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;">
+    <title>Chrome Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">🔍</div>
+                <span>Chrome Monitor</span>
+            </div>
+
+            <nav class="nav">
+                <button class="nav-item active" data-tab="analyze">
+                    <span class="nav-icon">📦</span>
+                    Analyze Extension
+                </button>
+                <button class="nav-item" data-tab="test">
+                    <span class="nav-icon">🧪</span>
+                    Browser Testing
+                </button>
+                <button class="nav-item" data-tab="automation">
+                    <span class="nav-icon">🤖</span>
+                    Automation
+                </button>
+                <button class="nav-item" data-tab="reports">
+                    <span class="nav-icon">📊</span>
+                    Reports
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="version">v1.0.0</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Analyze Tab -->
+            <section class="tab-content active" id="analyze-tab">
+                <div class="page-header">
+                    <h1>Analyze Chrome Extension</h1>
+                    <p>Upload a .crx or .zip file to analyze for security risks</p>
+                </div>
+
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📂</div>
+                    <h3>Drop CRX or ZIP file here</h3>
+                    <p>or click to browse</p>
+                    <button class="btn btn-primary" id="browse-btn">Browse Files</button>
+                </div>
+
+                <div class="analysis-result hidden" id="analysis-result"></div>
+            </section>
+
+            <!-- Test Tab -->
+            <section class="tab-content" id="test-tab">
+                <div class="page-header">
+                    <h1>Browser Testing</h1>
+                    <p>Start a monitored Chrome session to capture extension activity</p>
+                </div>
+
+                <div class="test-controls">
+                    <div class="control-card">
+                        <h3>Session Controls</h3>
+                        <div class="status-display" id="session-status">
+                            <div class="status-indicator inactive"></div>
+                            <span>Not Running</span>
+                        </div>
+
+                        <div class="stats-grid four-cols" id="session-stats">
+                            <div class="stat">
+                                <span class="stat-value" id="stat-requests">0</span>
+                                <span class="stat-label">Network</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value" id="stat-activities">0</span>
+                                <span class="stat-label">API Calls</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value" id="stat-dom">0</span>
+                                <span class="stat-label">DOM</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value" id="stat-duration">0s</span>
+                                <span class="stat-label">Duration</span>
+                            </div>
+                        </div>
+
+                        <!-- Threat Indicators -->
+                        <div class="threat-indicators hidden" id="threat-indicators">
+                            <div class="threat-level" id="threat-critical">
+                                <span class="threat-icon">🔴</span>
+                                <span class="threat-count" id="critical-count">0</span>
+                                <span class="threat-label">Critical</span>
+                            </div>
+                            <div class="threat-level" id="threat-high">
+                                <span class="threat-icon">🟠</span>
+                                <span class="threat-count" id="high-count">0</span>
+                                <span class="threat-label">High</span>
+                            </div>
+                            <div class="threat-level" id="threat-ext">
+                                <span class="threat-icon">🧩</span>
+                                <span class="threat-count" id="ext-count">0</span>
+                                <span class="threat-label">Extension</span>
+                            </div>
+                            <div class="threat-level" id="threat-screenshots">
+                                <span class="threat-icon">📸</span>
+                                <span class="threat-count" id="screenshot-count">0</span>
+                                <span class="threat-label">Screenshots</span>
+                            </div>
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn btn-success" id="start-test-btn">▶ Start Testing</button>
+                            <button class="btn btn-danger hidden" id="stop-test-btn">⏹ Stop & Generate Report</button>
+                            <button class="btn btn-secondary hidden" id="export-har-btn">📦 Export HAR</button>
+                        </div>
+                    </div>
+
+                    <!-- Live Activity Feed -->
+                    <div class="live-feed-card hidden" id="live-feed-card">
+                        <h3>📡 Live Activity Feed</h3>
+                        <div class="live-feed" id="live-feed">
+                            <div class="feed-empty">Monitoring will appear here...</div>
+                        </div>
+                    </div>
+
+                    <div class="instructions-card">
+                        <h3>How it works</h3>
+                        <ol>
+                            <li>Click <strong>Start Testing</strong> to launch Chrome</li>
+                            <li>Install or use extensions in the browser</li>
+                            <li>Go to <strong>Automation</strong> tab to run test scenarios</li>
+                            <li>Click <strong>Stop</strong> to generate a detailed report</li>
+                        </ol>
+                        <div class="info-box">
+                            <strong>📝 Tip:</strong> Use automation scripts to trigger extension activity on various
+                            websites automatically!
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Automation Tab -->
+            <section class="tab-content" id="automation-tab">
+                <div class="page-header">
+                    <h1>Automation</h1>
+                    <p>Run automated browsing scenarios to trigger extension activity</p>
+                </div>
+
+                <div class="automation-status hidden" id="automation-status">
+                    <div class="status-indicator active"></div>
+                    <span>Running automation...</span>
+                    <button class="btn btn-danger btn-sm" id="stop-automation-btn">Stop</button>
+                </div>
+
+                <div class="automation-content">
+                    <div class="templates-section">
+                        <h3>🎯 Automation Templates</h3>
+                        <p class="section-desc">Select a scenario to run in the monitored browser</p>
+
+                        <div class="credentials-option">
+                            <div class="cred-header">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="use-test-credentials">
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-label">🔐 Use Test Credentials</span>
+                                </label>
+                                <button class="btn btn-secondary btn-sm" id="manage-credentials-btn">⚙️ Manage</button>
+                            </div>
+                            <p class="credentials-info">Enable to auto-fill your test credentials during login flows</p>
+                            <div class="cred-status" id="cred-status">No credentials configured</div>
+                        </div>
+
+                        <div class="templates-grid" id="templates-grid">
+                            <!-- Templates will be loaded here -->
+                        </div>
+                    </div>
+
+                    <div class="logs-section">
+                        <h3>📋 Automation Log</h3>
+                        <div class="automation-logs" id="automation-logs">
+                            <div class="empty-log">Run an automation to see logs here</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Credentials Modal -->
+                <div class="modal hidden" id="credentials-modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>🔐 Manage Test Credentials</h3>
+                            <button class="modal-close" id="close-modal-btn">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="cred-section">
+                                <h4>Default Credentials</h4>
+                                <p class="section-desc">Used when no site-specific credentials are set</p>
+                                <div class="cred-form">
+                                    <input type="text" placeholder="Email" id="default-email">
+                                    <input type="text" placeholder="Username" id="default-username">
+                                    <input type="password" placeholder="Password" id="default-password">
+                                    <button class="btn btn-primary btn-sm" id="save-default-btn">Save</button>
+                                </div>
+                            </div>
+
+                            <div class="cred-section">
+                                <h4>Site-Specific Credentials</h4>
+                                <p class="section-desc">Add credentials for specific sites (e.g., facebook, google,
+                                    amazon)</p>
+                                <div class="cred-form">
+                                    <input type="text" placeholder="Site (e.g., facebook)" id="site-name">
+                                    <input type="text" placeholder="Email/Username" id="site-email">
+                                    <input type="password" placeholder="Password" id="site-password">
+                                    <button class="btn btn-success btn-sm" id="add-site-btn">Add</button>
+                                </div>
+                                <div class="sites-list" id="sites-list">
+                                    <!-- Sites will be listed here -->
+                                </div>
+                            </div>
+
+                            <div class="cred-actions">
+                                <button class="btn btn-secondary" id="import-creds-btn">📥 Import JSON</button>
+                                <button class="btn btn-secondary" id="export-creds-btn">📤 Export JSON</button>
+                                <button class="btn btn-danger" id="clear-creds-btn">🗑️ Clear All</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Tab -->
+            <section class="tab-content" id="reports-tab">
+                <div class="page-header">
+                    <h1>Reports</h1>
+                    <p>View and export saved monitoring reports</p>
+                </div>
+
+                <div class="reports-list" id="reports-list">
+                    <div class="empty-state">
+                        <span class="empty-icon">📋</span>
+                        <h3>No reports yet</h3>
+                        <p>Complete a testing session to generate reports</p>
+                    </div>
+                </div>
+
+                <div class="report-viewer hidden" id="report-viewer"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>
