@@ -100,17 +100,30 @@
                             <span class="badge badge-primary" id="test-status-badge">Ready</span>
                         </div>
 
-                        <!-- Quick Settings -->
-                        <div class="settings-row">
-                            <label class="toggle-label">
-                                <input type="checkbox" id="use-credentials">
-                                <span class="toggle-switch"></span>
-                                <span>Use Test Credentials</span>
-                            </label>
+                        <!-- Testing Mode -->
+                        <div class="test-mode-section">
+                            <div class="mode-option">
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="use-automation">
+                                    <span class="toggle-switch"></span>
+                                    <span>Run Automation Script</span>
+                                </label>
+                            </div>
 
-                            <select id="script-select" class="select-field">
-                                <option value="">Manual Testing</option>
-                            </select>
+                            <!-- Script selector (hidden by default) -->
+                            <div class="script-selector hidden" id="script-selector">
+                                <select id="script-select" class="select-field">
+                                    <option value="">Select a script...</option>
+                                </select>
+                                <div class="script-hint">Scripts include their own credential settings</div>
+                            </div>
+
+                            <!-- Manual mode helper -->
+                            <div class="manual-helper" id="manual-helper">
+                                <span class="helper-text">Manual mode: Control the browser yourself</span>
+                                <button class="btn-outline btn-sm" id="copy-creds-btn"
+                                    title="Copy test credentials to clipboard">📋 Copy Credentials</button>
+                            </div>
                         </div>
 
                         <!-- Action Buttons -->
