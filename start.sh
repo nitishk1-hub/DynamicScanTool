@@ -134,6 +134,14 @@ else
     npm install
 fi
 
+# Fix Electron sandbox permissions (required on Linux)
+SANDBOX_PATH="$APP_DIR/node_modules/electron/dist/chrome-sandbox"
+if [ -f "$SANDBOX_PATH" ]; then
+    echo "[*] Fixing Electron sandbox permissions..."
+    chown root:root "$SANDBOX_PATH" 2>/dev/null || true
+    chmod 4755 "$SANDBOX_PATH" 2>/dev/null || true
+fi
+
 echo "[OK] Dependencies installed"
 echo ""
 echo "Starting Chrome Monitor..."
@@ -141,6 +149,10 @@ echo ""
 
 # Run the app as regular user if we're root
 if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+    # Get the user's home and display
+    USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    
+    # Run electron as the regular user
     sudo -u "$SUDO_USER" npm start
 else
     npm start
