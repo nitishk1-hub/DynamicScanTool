@@ -329,25 +329,113 @@ body {
     margin-bottom: 8px;
 }
 
-.script-hint {
-    font-size: 11px;
-    color: var(--text-muted);
+.option-group {
+    margin-bottom: 16px;
 }
 
-.manual-helper {
+.automation-settings {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+}
+
+.select-full {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+.checkbox-label {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid var(--success);
-    border-radius: var(--radius);
-    margin-top: 12px;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
 }
 
-.helper-text {
+.checkbox-label input {
+    width: 16px;
+    height: 16px;
+}
+
+.creds-helper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    flex-wrap: wrap;
+}
+
+.helper-label {
     font-size: 12px;
-    color: var(--success);
+    color: var(--text-secondary);
+}
+
+.select-sm {
+    padding: 6px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 12px;
+}
+
+.examples-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.examples-section h4 {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.example-btn {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: 0.2s;
+}
+
+.example-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+}
+
+.scripts-sidebar {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+}
+
+.editor-help {
+    padding: 12px;
+    background: var(--bg-input);
+    border-radius: var(--radius);
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin-bottom: 12px;
 }
 
 .btn-sm {

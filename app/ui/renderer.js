@@ -70,38 +70,58 @@ const liveFeed = document.getElementById('live-feed');
 const testStatusBadge = document.getElementById('test-status-badge');
 const appStatus = document.getElementById('app-status');
 const useAutomation = document.getElementById('use-automation');
-const scriptSelector = document.getElementById('script-selector');
-const manualHelper = document.getElementById('manual-helper');
+const automationSettings = document.getElementById('automation-settings');
 let statusInterval = null;
 let currentLiveTab = 'network';
 let liveData = { network: [], dom: [], api: [], automation: [] };
+let allCredentials = { default: {}, sites: {} };
 
 // Toggle automation checkbox
 useAutomation?.addEventListener('change', () => {
     if (useAutomation.checked) {
-        scriptSelector?.classList.remove('hidden');
-        manualHelper?.classList.add('hidden');
+        automationSettings?.classList.remove('hidden');
     } else {
-        scriptSelector?.classList.add('hidden');
-        manualHelper?.classList.remove('hidden');
+        automationSettings?.classList.add('hidden');
     }
 });
 
-// Copy credentials button
-document.getElementById('copy-creds-btn')?.addEventListener('click', async () => {
-    const creds = await window.api.getCredentials();
-    const defaultCreds = creds.default || {};
+// Load credentials for quick copy
+async function loadCredentialsForCopy() {
+    allCredentials = await window.api.getCredentials();
+    const select = document.getElementById('cred-site-select');
+    if (!select) return;
 
-    const text = `Email: ${defaultCreds.email || 'N/A'}
-Username: ${defaultCreds.username || 'N/A'}
-Password: ${defaultCreds.password || 'N/A'}`;
+    select.innerHTML = '<option value="default">Default</option>';
+    Object.keys(allCredentials.sites || {}).forEach(site => {
+        select.innerHTML += `<option value="${site}">${site}</option>`;
+    });
+}
 
-    try {
-        await navigator.clipboard.writeText(text);
-        alert('Credentials copied to clipboard!\n\nPaste them in login forms during testing.');
-    } catch (e) {
-        // Fallback
-        prompt('Copy these credentials:', text);
+// Copy email button
+document.getElementById('copy-email-btn')?.addEventListener('click', async () => {
+    const site = document.getElementById('cred-site-select').value;
+    const creds = site === 'default' ? allCredentials.default : allCredentials.sites[site];
+    const email = creds?.email || creds?.username || '';
+
+    if (email) {
+        await navigator.clipboard.writeText(email);
+        alert(`Email copied: ${email}`);
+    } else {
+        alert('No email/username found. Set credentials in Credentials page.');
+    }
+});
+
+// Copy password button
+document.getElementById('copy-pass-btn')?.addEventListener('click', async () => {
+    const site = document.getElementById('cred-site-select').value;
+    const creds = site === 'default' ? allCredentials.default : allCredentials.sites[site];
+    const pass = creds?.password || '';
+
+    if (pass) {
+        await navigator.clipboard.writeText(pass);
+        alert('Password copied to clipboard!');
+    } else {
+        alert('No password found. Set credentials in Credentials page.');
     }
 });
 
@@ -327,6 +347,59 @@ document.getElementById('delete-script-btn')?.addEventListener('click', () => {
     }
 });
 
+// Example scripts
+const EXAMPLE_SCRIPTS = {
+    login: {
+        name: "Login Test",
+        description: "Test login on Facebook",
+        actions: [
+            { type: "navigate", url: "https://www.facebook.com/login" },
+            { type: "wait", duration: 2000 },
+            { type: "login", description: "Fill login form with saved credentials" },
+            { type: "wait", duration: 3000 }
+        ]
+    },
+    browse: {
+        name: "Browse Sites",
+        description: "Visit popular sites to trigger extension",
+        actions: [
+            { type: "navigate", url: "https://www.google.com" },
+            { type: "wait", duration: 2000 },
+            { type: "type", selector: "textarea[name='q']", text: "test search" },
+            { type: "press", key: "Enter" },
+            { type: "wait", duration: 3000 },
+            { type: "navigate", url: "https://www.github.com" },
+            { type: "wait", duration: 2000 },
+            { type: "scroll", distance: 500 }
+        ]
+    },
+    form: {
+        name: "Fill Form Test",
+        description: "Fill out a test form",
+        actions: [
+            { type: "navigate", url: "https://example.com/form" },
+            { type: "wait", duration: 2000 },
+            { type: "type", selector: "#name", text: "Test User" },
+            { type: "type", selector: "#email", text: "test@example.com" },
+            { type: "type", selector: "#message", text: "This is a test message" },
+            { type: "click", selector: "#submit" },
+            { type: "wait", duration: 2000 }
+        ]
+    }
+};
+
+document.querySelectorAll('.example-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const example = EXAMPLE_SCRIPTS[btn.dataset.example];
+        if (example) {
+            currentScriptIndex = null;
+            document.getElementById('script-name').value = example.name;
+            document.getElementById('script-editor').value = JSON.stringify(example, null, 2);
+            loadScripts();
+        }
+    });
+});
+
 // ============ CREDENTIALS ============
 async function loadCredentials() {
     const creds = await window.api.getCredentials();
@@ -464,3 +537,5 @@ function escapeHtml(s) { return s ? String(s).replace(/[&<>"']/g, m => ({ '&': '
 // ============ INIT ============
 loadScriptOptions();
 loadScripts();
+loadCredentialsForCopy();
+

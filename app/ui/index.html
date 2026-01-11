@@ -100,29 +100,35 @@
                             <span class="badge badge-primary" id="test-status-badge">Ready</span>
                         </div>
 
-                        <!-- Testing Mode -->
+                        <!-- Testing Options -->
                         <div class="test-mode-section">
-                            <div class="mode-option">
+                            <!-- Automation Option -->
+                            <div class="option-group">
                                 <label class="toggle-label">
                                     <input type="checkbox" id="use-automation">
                                     <span class="toggle-switch"></span>
                                     <span>Run Automation Script</span>
                                 </label>
+
+                                <div class="automation-settings hidden" id="automation-settings">
+                                    <select id="script-select" class="select-full">
+                                        <option value="">Select script...</option>
+                                    </select>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="continue-manual" checked>
+                                        <span>Continue with manual testing after script</span>
+                                    </label>
+                                </div>
                             </div>
 
-                            <!-- Script selector (hidden by default) -->
-                            <div class="script-selector hidden" id="script-selector">
-                                <select id="script-select" class="select-field">
-                                    <option value="">Select a script...</option>
+                            <!-- Credentials Helper -->
+                            <div class="creds-helper">
+                                <span class="helper-label">Quick Copy Credentials:</span>
+                                <select id="cred-site-select" class="select-sm">
+                                    <option value="default">Default</option>
                                 </select>
-                                <div class="script-hint">Scripts include their own credential settings</div>
-                            </div>
-
-                            <!-- Manual mode helper -->
-                            <div class="manual-helper" id="manual-helper">
-                                <span class="helper-text">Manual mode: Control the browser yourself</span>
-                                <button class="btn-outline btn-sm" id="copy-creds-btn"
-                                    title="Copy test credentials to clipboard">📋 Copy Credentials</button>
+                                <button class="btn-sm btn-outline" id="copy-email-btn">📧 Email</button>
+                                <button class="btn-sm btn-outline" id="copy-pass-btn">🔑 Password</button>
                             </div>
                         </div>
 
@@ -201,10 +207,29 @@
                     <button class="btn-primary" id="new-script-btn">+ New Script</button>
                 </div>
                 <div class="scripts-grid">
-                    <div class="scripts-list" id="scripts-list"></div>
+                    <div class="scripts-sidebar">
+                        <div class="scripts-list" id="scripts-list"></div>
+
+                        <!-- Examples -->
+                        <div class="examples-section">
+                            <h4>📚 Examples (click to load)</h4>
+                            <button class="example-btn" data-example="login">Login Test</button>
+                            <button class="example-btn" data-example="browse">Browse Sites</button>
+                            <button class="example-btn" data-example="form">Fill Form</button>
+                        </div>
+                    </div>
                     <div class="script-editor-panel">
                         <input type="text" id="script-name" class="input-large" placeholder="Script Name">
                         <textarea id="script-editor" class="code-editor" placeholder="Enter script JSON..."></textarea>
+                        <div class="editor-help">
+                            <strong>Available Actions:</strong><br>
+                            • navigate: { type: "navigate", url: "https://..." }<br>
+                            • click: { type: "click", selector: "#button" }<br>
+                            • type: { type: "type", selector: "#input", text: "hello" }<br>
+                            • wait: { type: "wait", duration: 2000 }<br>
+                            • login: { type: "login" } - uses saved credentials<br>
+                            • scroll: { type: "scroll", distance: 500 }
+                        </div>
                         <div class="editor-actions">
                             <button class="btn-primary" id="save-script-btn">💾 Save</button>
                             <button class="btn-outline" id="run-script-btn">▶ Test Run</button>
