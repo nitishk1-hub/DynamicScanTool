@@ -900,6 +900,16 @@ class BrowserMonitor {
                 url: e.url?.substring(0, 40),
                 timestamp: e.timestamp
             })),
+            recentExtensionEvents: this.activityEvents
+                .filter(e => e.type === 'extension_activity')
+                .slice(-10)
+                .reverse()
+                .map(e => ({
+                    extensionId: e.extensionId,
+                    apiName: e.apiName,
+                    pageUrl: e.pageUrl?.substring(0, 40),
+                    timestamp: e.timestamp
+                })),
 
             // Domains
             domains: this.getUniqueDomains().length,

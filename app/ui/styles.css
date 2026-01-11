@@ -702,6 +702,10 @@ body {
     color: var(--warning);
 }
 
+.feed-type.api {
+    color: var(--purple);
+}
+
 .feed-url {
     color: var(--text-secondary);
     flex: 1;

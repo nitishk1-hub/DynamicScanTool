@@ -210,7 +210,7 @@ async function updateStats() {
     document.getElementById('stat-threats').textContent = (stats.criticalEvents || 0) + (stats.highEvents || 0);
     document.getElementById('stat-duration').textContent = stats.duration + 's';
 
-    // Update live feed
+    // Update live feed - Network
     if (stats.recentNetworkEvents?.length) {
         stats.recentNetworkEvents.forEach(e => {
             if (!liveData.network.find(n => n.timestamp === e.timestamp)) {
@@ -218,6 +218,8 @@ async function updateStats() {
             }
         });
     }
+
+    // Update live feed - DOM
     if (stats.recentDOMEvents?.length) {
         stats.recentDOMEvents.forEach(e => {
             if (!liveData.dom.find(d => d.timestamp === e.timestamp)) {
@@ -226,21 +228,39 @@ async function updateStats() {
         });
     }
 
+    // Update live feed - Extension API calls
+    if (stats.recentExtensionEvents?.length) {
+        stats.recentExtensionEvents.forEach(e => {
+            if (!liveData.api.find(a => a.timestamp === e.timestamp && a.apiName === e.apiName)) {
+                liveData.api.unshift(e);
+            }
+        });
+    }
+
     liveData.network = liveData.network.slice(0, 100);
     liveData.dom = liveData.dom.slice(0, 100);
+    liveData.api = liveData.api.slice(0, 100);
     renderLiveFeed();
 }
 
 function renderLiveFeed() {
     const data = liveData[currentLiveTab];
-    if (!data?.length) return;
+    if (!data?.length) {
+        liveFeed.innerHTML = '<div class="feed-empty">No activity yet...</div>';
+        return;
+    }
 
     liveFeed.innerHTML = data.slice(0, 50).map(item => {
         const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '';
+
         if (currentLiveTab === 'network') {
             return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type network">${item.method || 'GET'}</span><span class="feed-url">${escapeHtml((item.url || '').substring(0, 80))}</span></div>`;
         } else if (currentLiveTab === 'dom') {
             return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type ${item.severity}">${item.type}</span><span class="feed-url">${escapeHtml((item.url || '').substring(0, 80))}</span></div>`;
+        } else if (currentLiveTab === 'api') {
+            return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type api">${escapeHtml(item.apiName || 'API')}</span><span class="feed-url">${escapeHtml((item.pageUrl || '').substring(0, 60))}</span></div>`;
+        } else if (currentLiveTab === 'automation') {
+            return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type">${item.type || 'log'}</span><span class="feed-url">${escapeHtml(item.message || '')}</span></div>`;
         }
         return '';
     }).join('');
