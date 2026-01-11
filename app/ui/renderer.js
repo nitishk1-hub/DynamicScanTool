@@ -536,3 +536,5 @@ function escapeHtml(str) {
 
 // ============ INIT ============
 loadScripts();
+loadScriptOptions(); // Load script dropdown on page load
+
