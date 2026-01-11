@@ -69,9 +69,41 @@ const livePanel = document.getElementById('live-panel');
 const liveFeed = document.getElementById('live-feed');
 const testStatusBadge = document.getElementById('test-status-badge');
 const appStatus = document.getElementById('app-status');
+const useAutomation = document.getElementById('use-automation');
+const scriptSelector = document.getElementById('script-selector');
+const manualHelper = document.getElementById('manual-helper');
 let statusInterval = null;
 let currentLiveTab = 'network';
 let liveData = { network: [], dom: [], api: [], automation: [] };
+
+// Toggle automation checkbox
+useAutomation?.addEventListener('change', () => {
+    if (useAutomation.checked) {
+        scriptSelector?.classList.remove('hidden');
+        manualHelper?.classList.add('hidden');
+    } else {
+        scriptSelector?.classList.add('hidden');
+        manualHelper?.classList.remove('hidden');
+    }
+});
+
+// Copy credentials button
+document.getElementById('copy-creds-btn')?.addEventListener('click', async () => {
+    const creds = await window.api.getCredentials();
+    const defaultCreds = creds.default || {};
+
+    const text = `Email: ${defaultCreds.email || 'N/A'}
+Username: ${defaultCreds.username || 'N/A'}
+Password: ${defaultCreds.password || 'N/A'}`;
+
+    try {
+        await navigator.clipboard.writeText(text);
+        alert('Credentials copied to clipboard!\n\nPaste them in login forms during testing.');
+    } catch (e) {
+        // Fallback
+        prompt('Copy these credentials:', text);
+    }
+});
 
 startBtn.addEventListener('click', async () => {
     startBtn.disabled = true;
@@ -95,10 +127,11 @@ startBtn.addEventListener('click', async () => {
 
         statusInterval = setInterval(updateStats, 500);
 
-        // Run selected script
-        const script = document.getElementById('script-select').value;
-        const useCreds = document.getElementById('use-credentials').checked;
-        if (script) runScript(script, useCreds);
+        // Run automation if enabled
+        if (useAutomation?.checked) {
+            const script = document.getElementById('script-select').value;
+            if (script) runScript(script, true);
+        }
     } else {
         alert('Failed: ' + result.error);
     }
@@ -211,28 +244,15 @@ window.api.onAutomationLog?.(entry => {
 // ============ LOAD SCRIPTS DROPDOWN ============
 async function loadScriptOptions() {
     const select = document.getElementById('script-select');
+    if (!select) return;
+
     const templates = await window.api.getAutomationTemplates();
     const saved = JSON.parse(localStorage.getItem('customScripts') || '[]');
 
-    // Clear and add manual option
-    select.innerHTML = '<option value="">📝 Manual Testing</option>';
+    // Start with placeholder
+    select.innerHTML = '<option value="">Select a script...</option>';
 
-    // Group: Quick Tests (only essential ones)
-    const essentialTemplates = ['browse-sites', 'login-test', 'full-security'];
-    select.innerHTML += '<optgroup label="🚀 Quick Tests">';
-    templates.filter(t => essentialTemplates.includes(t.id)).forEach(t => {
-        select.innerHTML += `<option value="builtin:${t.id}">${t.name}</option>`;
-    });
-    select.innerHTML += '</optgroup>';
-
-    // Group: All Built-in Templates
-    select.innerHTML += '<optgroup label="📦 Built-in Templates">';
-    templates.filter(t => !essentialTemplates.includes(t.id)).forEach(t => {
-        select.innerHTML += `<option value="builtin:${t.id}">${t.name}</option>`;
-    });
-    select.innerHTML += '</optgroup>';
-
-    // Group: Custom Scripts
+    // My Scripts first (priority)
     if (saved.length > 0) {
         select.innerHTML += '<optgroup label="✨ My Scripts">';
         saved.forEach((s, i) => {
@@ -240,6 +260,14 @@ async function loadScriptOptions() {
         });
         select.innerHTML += '</optgroup>';
     }
+
+    // Only 2 essential built-in templates
+    const essentialTemplates = ['browse-sites', 'login-test'];
+    select.innerHTML += '<optgroup label="📦 Built-in">';
+    templates.filter(t => essentialTemplates.includes(t.id)).forEach(t => {
+        select.innerHTML += `<option value="builtin:${t.id}">${t.name}</option>`;
+    });
+    select.innerHTML += '</optgroup>';
 }
 
 // ============ SCRIPTS PAGE ============
