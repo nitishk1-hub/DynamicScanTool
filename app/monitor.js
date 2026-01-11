@@ -90,7 +90,6 @@ class BrowserMonitor {
             '--disable-default-apps',
             '--enable-extension-activity-logging',
             '--enable-logging',
-            '--disable-web-security',  // Allow CORS for better interception
             '--v=1'
         ];
 
