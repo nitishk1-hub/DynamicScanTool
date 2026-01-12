@@ -41,6 +41,8 @@ class BrowserMonitor {
         this.activityReader = null;
         this.automation = null;
         this.currentPage = null;
+        this.activityPollingInterval = null;
+        this.loadedExtensions = [];
 
         // Load DOM monitor script
         this.domMonitorScript = this.loadDomMonitorScript();
@@ -165,6 +167,18 @@ class BrowserMonitor {
 
             this.isRunning = true;
             console.log('Browser monitoring started with FULL body capture');
+
+            // Navigate to extensions page so user can load extension
+            try {
+                const extensionPage = pages[0] || await this.browser.newPage();
+                await extensionPage.goto('chrome://extensions/', { waitUntil: 'domcontentloaded' });
+                console.log('Navigated to chrome://extensions - Enable Developer Mode and load your extension');
+            } catch (e) {
+                console.log('Could not navigate to extensions page:', e.message);
+            }
+
+            // Start polling for extension activity
+            this.startExtensionActivityPolling();
 
         } catch (error) {
             this.cleanup();
@@ -408,6 +422,106 @@ class BrowserMonitor {
         return [];
     }
 
+    /**
+     * Start polling for extension activity
+     */
+    startExtensionActivityPolling() {
+        if (this.activityPollingInterval) return;
+
+        this.activityPollingInterval = setInterval(async () => {
+            await this.pollExtensionActivity();
+        }, 3000);
+    }
+
+    /**
+     * Stop polling for extension activity
+     */
+    stopExtensionActivityPolling() {
+        if (this.activityPollingInterval) {
+            clearInterval(this.activityPollingInterval);
+            this.activityPollingInterval = null;
+        }
+    }
+
+    /**
+     * Poll extension activity from Chrome's activity log
+     * This reads the activity data from the extensions page
+     */
+    async pollExtensionActivity() {
+        if (!this.browser) return;
+
+        try {
+            // Try to get extension info from existing pages
+            const pages = await this.browser.pages();
+
+            for (const page of pages) {
+                const url = page.url();
+
+                // Check if we're on an extension page
+                if (url.startsWith('chrome-extension://')) {
+                    const extId = url.split('/')[2];
+
+                    if (!this.loadedExtensions.includes(extId)) {
+                        this.loadedExtensions.push(extId);
+
+                        this.activityEvents.push({
+                            timestamp: new Date().toISOString(),
+                            type: 'extension_activity',
+                            apiName: 'extension.loaded',
+                            extensionId: extId,
+                            pageUrl: url
+                        });
+                    }
+                }
+            }
+
+            // Monitor extension-related console messages and runtime calls
+            // by injecting listeners into pages
+            for (const page of pages) {
+                try {
+                    // Check for extension API usage via performance entries
+                    const entries = await page.evaluate(() => {
+                        if (typeof window.__chromeMonitorEntries === 'undefined') {
+                            window.__chromeMonitorEntries = [];
+
+                            // Override console to capture extension logs
+                            const origLog = console.log;
+                            console.log = function (...args) {
+                                const msg = args.join(' ');
+                                if (msg.includes('extension') || msg.includes('chrome.')) {
+                                    window.__chromeMonitorEntries.push({
+                                        type: 'console',
+                                        message: msg.substring(0, 200),
+                                        time: Date.now()
+                                    });
+                                }
+                                origLog.apply(console, args);
+                            };
+                        }
+
+                        const entries = [...window.__chromeMonitorEntries];
+                        window.__chromeMonitorEntries = [];
+                        return entries;
+                    }).catch(() => []);
+
+                    for (const entry of entries) {
+                        this.activityEvents.push({
+                            timestamp: new Date(entry.time).toISOString(),
+                            type: 'extension_activity',
+                            apiName: entry.type,
+                            pageUrl: page.url(),
+                            details: entry.message
+                        });
+                    }
+                } catch (e) {
+                    // Page may not be accessible
+                }
+            }
+        } catch (e) {
+            // Browser may be disconnected
+        }
+    }
+
     async stop() {
         if (!this.isRunning) {
             return null;
@@ -415,6 +529,7 @@ class BrowserMonitor {
 
         const endTime = new Date();
         this.stopAutomation();
+        this.stopExtensionActivityPolling();
 
         if (this.activityReader) {
             this.activityReader.stopPolling();
