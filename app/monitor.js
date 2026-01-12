@@ -4,6 +4,7 @@ const fs = require('fs');
 const puppeteer = require('puppeteer-core');
 const { v4: uuidv4 } = require('uuid');
 const os = require('os');
+const { WebSocketServer } = require('ws');
 
 // Import modules
 let ActivityLogReader, Automation, CredentialsManager;
@@ -43,12 +44,17 @@ class BrowserMonitor {
         this.currentPage = null;
         this.activityPollingInterval = null;
         this.loadedExtensions = [];
+        this.wsServer = null;
+        this.wsClients = [];
 
         // Load DOM monitor script
         this.domMonitorScript = this.loadDomMonitorScript();
 
         // Store request/response pairs
         this.requestMap = new Map();
+
+        // Monitor extension path
+        this.monitorExtensionPath = path.join(__dirname, '..', 'monitor-extension');
 
         // Custom profile path for monitoring
         this.chromeProfilePath = path.join(dataDir, 'chrome-profile');
@@ -95,9 +101,23 @@ class BrowserMonitor {
             '--v=1'
         ];
 
-        if (options.extensionPath) {
-            args.push(`--load-extension=${options.extensionPath}`);
+        // Load monitor extension if exists
+        const extensionsToLoad = [];
+        if (fs.existsSync(this.monitorExtensionPath)) {
+            extensionsToLoad.push(this.monitorExtensionPath);
+            console.log('Loading monitor extension for activity capture...');
         }
+
+        if (options.extensionPath) {
+            extensionsToLoad.push(options.extensionPath);
+        }
+
+        if (extensionsToLoad.length > 0) {
+            args.push(`--load-extension=${extensionsToLoad.join(',')}`);
+        }
+
+        // Start WebSocket server for monitor extension communication
+        this.startWebSocketServer();
 
         console.log('Starting Chrome with full network capture...');
 
@@ -390,6 +410,86 @@ class BrowserMonitor {
     }
 
     /**
+     * Start WebSocket server for monitor extension communication
+     */
+    startWebSocketServer() {
+        if (this.wsServer) return;
+
+        try {
+            this.wsServer = new WebSocketServer({ port: 9333 });
+
+            this.wsServer.on('connection', (ws) => {
+                console.log('[WebSocket] Monitor extension connected');
+                this.wsClients.push(ws);
+
+                ws.on('message', (data) => {
+                    try {
+                        const message = JSON.parse(data.toString());
+                        this.handleWebSocketMessage(message);
+                    } catch (e) {
+                        console.error('[WebSocket] Invalid message:', e.message);
+                    }
+                });
+
+                ws.on('close', () => {
+                    this.wsClients = this.wsClients.filter(c => c !== ws);
+                    console.log('[WebSocket] Monitor extension disconnected');
+                });
+            });
+
+            this.wsServer.on('error', (err) => {
+                console.log('[WebSocket] Server error:', err.message);
+            });
+
+            console.log('[WebSocket] Activity server started on port 9333');
+        } catch (e) {
+            console.log('[WebSocket] Failed to start server:', e.message);
+        }
+    }
+
+    /**
+     * Stop WebSocket server
+     */
+    stopWebSocketServer() {
+        if (this.wsServer) {
+            for (const client of this.wsClients) {
+                try { client.close(); } catch (e) { }
+            }
+            this.wsClients = [];
+            this.wsServer.close();
+            this.wsServer = null;
+            console.log('[WebSocket] Activity server stopped');
+        }
+    }
+
+    /**
+     * Handle incoming WebSocket messages from monitor extension
+     */
+    handleWebSocketMessage(message) {
+        if (message.type === 'activity') {
+            // Single activity
+            const activity = {
+                ...message.activity,
+                type: 'extension_activity',
+                source: 'monitor_extension'
+            };
+            this.activityEvents.push(activity);
+            console.log(`[Activity] ${activity.apiName || activity.type}`);
+        } else if (message.type === 'activity_batch') {
+            // Batch of activities
+            for (const act of message.activities) {
+                const activity = {
+                    ...act,
+                    type: 'extension_activity',
+                    source: 'monitor_extension'
+                };
+                this.activityEvents.push(activity);
+            }
+            console.log(`[Activity] Received batch of ${message.activities.length} activities`);
+        }
+    }
+
+    /**
      * Run automation script
      */
     async runAutomation(script, onLog = null, options = {}) {
@@ -530,6 +630,7 @@ class BrowserMonitor {
         const endTime = new Date();
         this.stopAutomation();
         this.stopExtensionActivityPolling();
+        this.stopWebSocketServer();
 
         if (this.activityReader) {
             this.activityReader.stopPolling();
