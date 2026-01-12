@@ -171,7 +171,7 @@
                     </div>
                 </div>
 
-                <!-- Live Feed (Bottom) -->
+                <!-- Live Feed (Bottom) - Burp Suite Style -->
                 <div class="live-panel hidden" id="live-panel">
                     <div class="live-header">
                         <div class="live-tabs">
@@ -180,13 +180,45 @@
                             <button class="live-tab" data-live="api">API Calls</button>
                             <button class="live-tab" data-live="automation">Automation</button>
                         </div>
-                        <div class="live-indicator">
-                            <span class="pulse"></span>
-                            <span>LIVE</span>
+                        <div class="header-actions">
+                            <button class="btn-sm btn-outline" id="clear-history-btn">Clear</button>
+                            <div class="live-indicator">
+                                <span class="pulse"></span>
+                                <span>LIVE</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="live-feed" id="live-feed">
-                        <div class="feed-empty">Waiting for activity...</div>
+
+                    <!-- Burp Suite Style Split View -->
+                    <div class="burp-container">
+                        <!-- Left: Request List -->
+                        <div class="request-list-panel">
+                            <div class="request-list-header">
+                                <span class="col-method">Method</span>
+                                <span class="col-url">URL</span>
+                                <span class="col-status">Status</span>
+                                <span class="col-size">Size</span>
+                            </div>
+                            <div class="request-list" id="request-list">
+                                <div class="feed-empty">Waiting for requests...</div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Request/Response Detail -->
+                        <div class="detail-panel" id="detail-panel">
+                            <div class="detail-tabs">
+                                <button class="detail-tab active" data-detail="request">Request</button>
+                                <button class="detail-tab" data-detail="response">Response</button>
+                            </div>
+                            <div class="detail-content">
+                                <div class="detail-section active" id="request-detail">
+                                    <div class="detail-empty">Select a request to view details</div>
+                                </div>
+                                <div class="detail-section" id="response-detail">
+                                    <div class="detail-empty">Select a request to view response</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

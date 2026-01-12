@@ -1044,6 +1044,47 @@ class BrowserMonitor {
     }
 
     /**
+     * Get combined request/response pairs for Burp-style view
+     */
+    getCombinedNetworkEvents(limit = 20) {
+        // Get recent requests
+        const requests = this.networkEvents
+            .filter(e => e.type === 'request')
+            .slice(-limit * 2);
+
+        // Build combined entries
+        const combined = [];
+
+        for (const req of requests) {
+            // Find matching response
+            const resp = this.networkEvents.find(
+                e => e.id === req.id && e.type === 'response'
+            );
+
+            combined.push({
+                id: req.id,
+                timestamp: req.timestamp,
+                method: req.method,
+                url: req.url,
+                headers: req.headers,
+                postData: req.postData,
+                hasPostData: req.hasPostData,
+                // Response data
+                status: resp?.status,
+                statusText: resp?.statusText,
+                responseHeaders: resp?.headers,
+                body: resp?.body,
+                mimeType: resp?.mimeType,
+                bodyLength: resp?.body?.length || 0,
+                fromExtension: req.fromExtension
+            });
+        }
+
+        // Return latest, reversed (newest first)
+        return combined.slice(-limit).reverse();
+    }
+
+    /**
      * Export HAR to file
      */
     async exportHAR(outputPath = null) {
@@ -1102,14 +1143,8 @@ class BrowserMonitor {
             highEvents: highDOM,
             extensionRequests: extRequests,
 
-            // Recent activity
-            recentNetworkEvents: recentNetwork.map(e => ({
-                type: e.type,
-                method: e.method,
-                url: e.url?.substring(0, 60),
-                status: e.status,
-                timestamp: e.timestamp
-            })),
+            // Recent activity - combine request/response pairs for Burp-style view
+            recentNetworkEvents: this.getCombinedNetworkEvents(20),
             recentDOMEvents: recentDOM.map(e => ({
                 type: e.type,
                 severity: e.severity,

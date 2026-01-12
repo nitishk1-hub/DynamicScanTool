@@ -237,33 +237,156 @@ async function updateStats() {
         });
     }
 
-    liveData.network = liveData.network.slice(0, 100);
+    liveData.network = liveData.network.slice(0, 200);
     liveData.dom = liveData.dom.slice(0, 100);
     liveData.api = liveData.api.slice(0, 100);
-    renderLiveFeed();
+    renderRequestList();
 }
 
-function renderLiveFeed() {
-    const data = liveData[currentLiveTab];
-    if (!data?.length) {
-        liveFeed.innerHTML = '<div class="feed-empty">No activity yet...</div>';
-        return;
+// Store full request/response data
+let fullRequestData = new Map();
+let selectedRequestId = null;
+
+function renderRequestList() {
+    const requestList = document.getElementById('request-list');
+    if (!requestList) return;
+
+    // For network tab, show Burp-style list
+    if (currentLiveTab === 'network') {
+        const data = liveData.network;
+        if (!data?.length) {
+            requestList.innerHTML = '<div class="feed-empty">Waiting for requests...</div>';
+            return;
+        }
+
+        requestList.innerHTML = data.slice(0, 100).map((item, index) => {
+            const statusClass = item.status >= 400 ? 'error' : item.status >= 300 ? 'redirect' : 'ok';
+            const size = item.bodyLength ? formatSize(item.bodyLength) : '-';
+            const id = item.id || `req-${index}`;
+
+            // Store full data
+            fullRequestData.set(id, item);
+
+            return `
+                <div class="request-row ${selectedRequestId === id ? 'selected' : ''}" data-id="${id}">
+                    <span class="method ${item.method || 'GET'}">${item.method || 'GET'}</span>
+                    <span class="url">${escapeHtml((item.url || '').substring(0, 80))}</span>
+                    <span class="status ${statusClass}">${item.status || '-'}</span>
+                    <span class="size">${size}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Add click handlers
+        requestList.querySelectorAll('.request-row').forEach(row => {
+            row.addEventListener('click', () => {
+                selectedRequestId = row.dataset.id;
+                requestList.querySelectorAll('.request-row').forEach(r => r.classList.remove('selected'));
+                row.classList.add('selected');
+                showRequestDetail(fullRequestData.get(selectedRequestId));
+            });
+        });
+    } else {
+        // For other tabs, show simple list
+        const data = liveData[currentLiveTab];
+        if (!data?.length) {
+            requestList.innerHTML = '<div class="feed-empty">No activity yet...</div>';
+            return;
+        }
+
+        requestList.innerHTML = data.slice(0, 50).map(item => {
+            const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '';
+
+            if (currentLiveTab === 'dom') {
+                return `<div class="request-row"><span class="method ${item.severity}">${item.type}</span><span class="url">${escapeHtml((item.url || '').substring(0, 80))}</span><span class="status">${item.severity}</span><span class="size">${time}</span></div>`;
+            } else if (currentLiveTab === 'api') {
+                return `<div class="request-row"><span class="method api">${escapeHtml((item.apiName || 'API').substring(0, 20))}</span><span class="url">${escapeHtml((item.pageUrl || item.details || '').substring(0, 60))}</span><span class="status">-</span><span class="size">${time}</span></div>`;
+            } else if (currentLiveTab === 'automation') {
+                return `<div class="request-row"><span class="method">${item.type || 'log'}</span><span class="url">${escapeHtml(item.message || '')}</span><span class="status">-</span><span class="size">${time}</span></div>`;
+            }
+            return '';
+        }).join('');
+    }
+}
+
+function showRequestDetail(item) {
+    if (!item) return;
+
+    const requestDetail = document.getElementById('request-detail');
+    const responseDetail = document.getElementById('response-detail');
+
+    // Request Details
+    let requestHeaders = '';
+    if (item.headers) {
+        requestHeaders = Object.entries(item.headers)
+            .map(([k, v]) => `<div class="header-item"><span class="header-name">${escapeHtml(k)}:</span><span class="header-val">${escapeHtml(String(v))}</span></div>`)
+            .join('');
     }
 
-    liveFeed.innerHTML = data.slice(0, 50).map(item => {
-        const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '';
+    const postData = item.postData || '';
+    const postDataFormatted = tryFormatJson(postData);
 
-        if (currentLiveTab === 'network') {
-            return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type network">${item.method || 'GET'}</span><span class="feed-url">${escapeHtml((item.url || '').substring(0, 80))}</span></div>`;
-        } else if (currentLiveTab === 'dom') {
-            return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type ${item.severity}">${item.type}</span><span class="feed-url">${escapeHtml((item.url || '').substring(0, 80))}</span></div>`;
-        } else if (currentLiveTab === 'api') {
-            return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type api">${escapeHtml(item.apiName || 'API')}</span><span class="feed-url">${escapeHtml((item.pageUrl || '').substring(0, 60))}</span></div>`;
-        } else if (currentLiveTab === 'automation') {
-            return `<div class="feed-item"><span class="feed-time">${time}</span><span class="feed-type">${item.type || 'log'}</span><span class="feed-url">${escapeHtml(item.message || '')}</span></div>`;
-        }
-        return '';
-    }).join('');
+    requestDetail.innerHTML = `
+        <div class="detail-block">
+            <div class="detail-label">Request Line</div>
+            <div class="detail-value">${item.method || 'GET'} ${escapeHtml(item.url || '')} HTTP/1.1</div>
+        </div>
+        ${requestHeaders ? `
+        <div class="detail-block">
+            <div class="detail-label">Headers</div>
+            <div class="detail-value">${requestHeaders}</div>
+        </div>` : ''}
+        ${postData ? `
+        <div class="detail-block">
+            <div class="detail-label">Request Body</div>
+            <div class="detail-value ${postDataFormatted.isJson ? 'json' : ''}">${escapeHtml(postDataFormatted.text)}</div>
+        </div>` : '<div class="detail-block"><div class="detail-label">Request Body</div><div class="detail-value">(No body)</div></div>'}
+    `;
+
+    // Response Details
+    let responseHeaders = '';
+    if (item.responseHeaders) {
+        responseHeaders = Object.entries(item.responseHeaders)
+            .map(([k, v]) => `<div class="header-item"><span class="header-name">${escapeHtml(k)}:</span><span class="header-val">${escapeHtml(String(v))}</span></div>`)
+            .join('');
+    }
+
+    const responseBody = item.body || '';
+    const responseFormatted = tryFormatJson(responseBody);
+
+    responseDetail.innerHTML = `
+        <div class="detail-block">
+            <div class="detail-label">Status</div>
+            <div class="detail-value ${item.status >= 400 ? 'error' : ''}">${item.status || '-'} ${item.statusText || ''}</div>
+        </div>
+        ${responseHeaders ? `
+        <div class="detail-block">
+            <div class="detail-label">Response Headers</div>
+            <div class="detail-value">${responseHeaders}</div>
+        </div>` : ''}
+        ${responseBody ? `
+        <div class="detail-block">
+            <div class="detail-label">Response Body</div>
+            <div class="detail-value ${responseFormatted.isJson ? 'json' : ''}">${escapeHtml(responseFormatted.text.substring(0, 5000))}</div>
+        </div>` : '<div class="detail-block"><div class="detail-label">Response Body</div><div class="detail-value">(No body captured)</div></div>'}
+    `;
+}
+
+function tryFormatJson(text) {
+    if (!text) return { text: '', isJson: false };
+    try {
+        const parsed = JSON.parse(text);
+        return { text: JSON.stringify(parsed, null, 2), isJson: true };
+    } catch (e) {
+        return { text: String(text), isJson: false };
+    }
+}
+
+function formatSize(bytes) {
+    if (!bytes) return '-';
+    if (bytes < 1024) return bytes + 'B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
 }
 
 // Live tabs
@@ -272,8 +395,31 @@ document.querySelectorAll('.live-tab').forEach(tab => {
         document.querySelectorAll('.live-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         currentLiveTab = tab.dataset.live;
-        renderLiveFeed();
+        selectedRequestId = null;
+        document.getElementById('request-detail').innerHTML = '<div class="detail-empty">Select a request to view details</div>';
+        document.getElementById('response-detail').innerHTML = '<div class="detail-empty">Select a request to view response</div>';
+        renderRequestList();
     });
+});
+
+// Detail tabs (Request/Response toggle)
+document.querySelectorAll('.detail-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.detail-section').forEach(s => s.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`${tab.dataset.detail}-detail`).classList.add('active');
+    });
+});
+
+// Clear history
+document.getElementById('clear-history-btn')?.addEventListener('click', () => {
+    liveData = { network: [], dom: [], api: [], automation: [] };
+    fullRequestData.clear();
+    selectedRequestId = null;
+    renderRequestList();
+    document.getElementById('request-detail').innerHTML = '<div class="detail-empty">Select a request to view details</div>';
+    document.getElementById('response-detail').innerHTML = '<div class="detail-empty">Select a request to view response</div>';
 });
 
 // Automation logs
